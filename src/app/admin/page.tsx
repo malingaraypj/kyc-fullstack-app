@@ -187,6 +187,7 @@ export default function AdminPage() {
       let ipfsPan = '';
       
       try {
+        console.log(`Fetching records for customer ${data[0]}...`);
         const recordsCount = await contract.getCustomerRecordsCount(data[0]);
         const totalRecords = Number(recordsCount);
         
@@ -197,14 +198,19 @@ export default function AdminPage() {
           const kind = record[0];
           const recordData = record[1];
           
+          console.log(`Record ${i}: kind=${kind}, data=${recordData}`);
+          
           if (kind === 'ipfsAadhar') {
             ipfsAadhar = recordData;
           } else if (kind === 'ipfsPan') {
             ipfsPan = recordData;
           }
         }
-      } catch (err) {
-        console.log(`No additional records found for customer: ${data[0]}`);
+        
+        console.log(`Documents found for ${data[0]}: Aadhaar=${!!ipfsAadhar}, PAN=${!!ipfsPan}`);
+      } catch (err: any) {
+        console.error(`Error fetching records for customer ${data[0]}:`, err);
+        console.error('Error details:', err.message);
       }
       
       return {
@@ -316,7 +322,7 @@ export default function AdminPage() {
   async function loadCustomerHistory(kycId: string) {
     setLoadingHistory(true);
     try {
-      const contract = await getContract();
+      const contract = await getContract(true); // Use signer for admin-restricted reads
       const count = await contract.getCustomerHistoryCount(kycId);
       const totalCount = Number(count);
       
