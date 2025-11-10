@@ -1,77 +1,76 @@
-import axios from 'axios';
+import { toast } from "sonner";
 
-const PINATA_API_KEY = process.env.NEXT_PUBLIC_PINATA_API_KEY || '';
-const PINATA_SECRET_KEY = process.env.NEXT_PUBLIC_PINATA_SECRET_KEY || '';
-const PINATA_JWT = process.env.NEXT_PUBLIC_PINATA_JWT || '';
+// --- CHANGED: Added 'export' ---
+export const GATEWAY_URL = process.env.NEXT_PUBLIC_PINATA_GATEWAY_URL;
+export const GATEWAY_TOKEN = process.env.NEXT_PUBLIC_PINATA_GATEWAY_TOKEN;
+// --- END CHANGE ---
 
-/**
- * Upload a file to IPFS using Pinata
- * @param file - File to upload
- * @returns IPFS hash (CID)
- */
 export async function uploadToIPFS(file: File): Promise<string> {
-  if (!file) {
-    throw new Error('No file provided');
-  }
+  const formData = new FormData();
+  formData.append("file", file);
+
+  const metadata = JSON.stringify({
+    name: file.name,
+  });
+  formData.append("pinataMetadata", metadata);
+
+  const options = JSON.stringify({
+    cidVersion: 0,
+  });
+  formData.append("pinataOptions", options);
 
   try {
-    const formData = new FormData();
-    formData.append('file', file);
-
-    const metadata = JSON.stringify({
-      name: file.name,
-      keyvalues: {
-        type: 'kyc-document',
-        timestamp: Date.now().toString()
-      }
+    const res = await fetch("https://api.pinata.cloud/pinning/pinFileToIPFS", {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${process.env.NEXT_PUBLIC_PINATA_JWT}`,
+      },
+      body: formData,
     });
-    formData.append('pinataMetadata', metadata);
 
-    const options = JSON.stringify({
-      cidVersion: 1,
-    });
-    formData.append('pinataOptions', options);
-
-    // Try using JWT first, then fallback to API key
-    const headers: any = {
-      'Content-Type': 'multipart/form-data',
-    };
-
-    if (PINATA_JWT) {
-      headers['Authorization'] = `Bearer ${PINATA_JWT}`;
-    } else if (PINATA_API_KEY && PINATA_SECRET_KEY) {
-      headers['pinata_api_key'] = PINATA_API_KEY;
-      headers['pinata_secret_api_key'] = PINATA_SECRET_KEY;
-    } else {
-      throw new Error('Pinata credentials not configured. Please add NEXT_PUBLIC_PINATA_JWT to your .env.local file');
+    if (!res.ok) {
+      const errorData = await res.json();
+      throw new Error(errorData.error || `HTTP error! status: ${res.status}`);
     }
 
-    const response = await axios.post(
-      'https://api.pinata.cloud/pinning/pinFileToIPFS',
-      formData,
-      { headers }
-    );
-
-    const ipfsHash = response.data.IpfsHash;
-    return `ipfs://${ipfsHash}`;
+    const data = await res.json();
+    return `ipfs://${data.IpfsHash}`;
   } catch (error: any) {
-    console.error('Error uploading to IPFS:', error);
-    if (error.response) {
-      throw new Error(`IPFS upload failed: ${error.response.data?.error || error.message}`);
-    }
-    throw new Error(`Failed to upload file to IPFS: ${error.message}`);
+    console.error("Error uploading file to IPFS:", error);
+    throw new Error(error.message || "Failed to upload file to IPFS");
   }
 }
 
-/**
- * Get IPFS gateway URL from IPFS URI
- * @param ipfsUri - IPFS URI (ipfs://...)
- * @returns HTTP URL to access the file
- */
-export function getIPFSGatewayUrl(ipfsUri: string): string {
-  if (ipfsUri.startsWith('ipfs://')) {
-    const hash = ipfsUri.replace('ipfs://', '');
-    return `https://gateway.pinata.cloud/ipfs/${hash}`;
+export async function uploadJSONToIPFS(json: object): Promise<string> {
+  const data = JSON.stringify({
+    pinataOptions: {
+      cidVersion: 1,
+    },
+    pinataMetadata: {
+      name: "kyc-metadata.json",
+    },
+    pinataContent: json,
+  });
+
+  try {
+    const res = await fetch("https://api.pinata.cloud/pinning/pinJSONToIPFS", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${process.env.NEXT_PUBLIC_PINATA_JWT}`,
+      },
+      body: data,
+    });
+
+    if (!res.ok) {
+      const errorData = await res.json();
+      throw new Error(errorData.error || `HTTP error! status: ${res.status}`);
+    }
+
+    const responseData = await res.json();
+    return `ipfs://${responseData.IpfsHash}`;
+  } catch (error: any) {
+    console.error("Error uploading JSON to IPFS:", error);
+    throw new Error(error.message || "Failed to upload JSON to IPFS");
   }
-  return ipfsUri;
 }

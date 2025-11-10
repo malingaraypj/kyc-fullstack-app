@@ -1,19 +1,49 @@
-'use client';
+"use client";
 
-import { useState, useEffect } from 'react';
-import { useWallet } from '@/lib/WalletProvider';
-import { getContract } from '@/lib/contract';
-import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Alert, AlertDescription } from '@/components/ui/alert';
-import { Badge } from '@/components/ui/badge';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { Textarea } from '@/components/ui/textarea';
-import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
-import { Loader2, CheckCircle2, XCircle, Clock, Shield, AlertTriangle, Search, FileText, History, ExternalLink, Eye, Building2, Plus, Ban, RefreshCw, Download, Image as ImageIcon } from 'lucide-react';
-import { toast } from 'sonner';
+import { useState, useEffect } from "react";
+import { useWallet } from "@/lib/WalletProvider";
+import { getContract } from "@/lib/contract";
+import { GATEWAY_URL, GATEWAY_TOKEN } from "@/lib/ipfs";
+import { Button } from "@/components/ui/button";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import { Alert, AlertDescription } from "@/components/ui/alert";
+import { Badge } from "@/components/ui/badge";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import {
+  Loader2,
+  CheckCircle2,
+  XCircle,
+  Clock,
+  Shield,
+  AlertTriangle,
+  Search,
+  FileText,
+  History,
+  ExternalLink,
+  Eye,
+  Building2,
+  Plus,
+  Ban,
+  RefreshCw,
+} from "lucide-react";
+import { toast } from "sonner";
 
 interface CustomerData {
   kycId: string;
@@ -42,7 +72,7 @@ interface HistoryEntry {
 }
 
 interface ActionDialogData {
-  type: 'approve' | 'reject' | 'revoke';
+  type: "approve" | "reject" | "revoke";
   customer: CustomerData;
 }
 
@@ -51,28 +81,47 @@ export default function AdminPage() {
   const [loading, setLoading] = useState(true);
   const [isAdmin, setIsAdmin] = useState(false);
   const [customers, setCustomers] = useState<CustomerData[]>([]);
-  const [filteredCustomers, setFilteredCustomers] = useState<CustomerData[]>([]);
+  const [filteredCustomers, setFilteredCustomers] = useState<CustomerData[]>(
+    []
+  );
   const [processing, setProcessing] = useState<string | null>(null);
-  const [searchTerm, setSearchTerm] = useState('');
-  const [actionDialog, setActionDialog] = useState<ActionDialogData | null>(null);
-  const [remarks, setRemarks] = useState('');
-  const [viewingCustomer, setViewingCustomer] = useState<CustomerData | null>(null);
+  const [searchTerm, setSearchTerm] = useState("");
+  const [actionDialog, setActionDialog] = useState<ActionDialogData | null>(
+    null
+  );
+  const [remarks, setRemarks] = useState("");
+  const [viewingCustomer, setViewingCustomer] = useState<CustomerData | null>(
+    null
+  );
   const [customerHistory, setCustomerHistory] = useState<HistoryEntry[]>([]);
   const [loadingHistory, setLoadingHistory] = useState(false);
   const [fetchError, setFetchError] = useState<string | null>(null);
-  const [viewingDocument, setViewingDocument] = useState<{type: string, url: string} | null>(null);
-  
+
   // Bank management states
   const [banks, setBanks] = useState<BankData[]>([]);
   const [showAddBankDialog, setShowAddBankDialog] = useState(false);
-  const [newBankName, setNewBankName] = useState('');
-  const [newBankAddress, setNewBankAddress] = useState('');
+  const [newBankName, setNewBankName] = useState("");
+  const [newBankAddress, setNewBankAddress] = useState("");
   const [addingBank, setAddingBank] = useState(false);
+
+  // --- NEW HELPER FUNCTION TO FIX URL ---
+  const handleViewDoc = (cidWithPrefix: string | undefined) => {
+    if (!cidWithPrefix) return; // Safety check
+
+    // Remove the "ipfs://" prefix if it exists
+    const cid = cidWithPrefix.replace("ipfs://", "");
+
+    // Build the correct gateway URL using imported constants
+    const url = `${GATEWAY_URL}/ipfs/${cid}?pinataGatewayToken=${GATEWAY_TOKEN}`;
+
+    window.open(url, "_blank");
+  };
+  // --- END ---
 
   // Fetch data when account is available or when component mounts
   useEffect(() => {
     if (account) {
-      console.log('Account detected, loading admin dashboard data...');
+      console.log("Account detected, loading admin dashboard data...");
       checkAdminAndLoadData();
     }
   }, [account]);
@@ -89,11 +138,12 @@ export default function AdminPage() {
     }
 
     const term = searchTerm.toLowerCase();
-    const filtered = customers.filter(c => 
-      c.kycId.toLowerCase().includes(term) ||
-      c.name.toLowerCase().includes(term) ||
-      c.pan.toLowerCase().includes(term) ||
-      c.applicant.toLowerCase().includes(term)
+    const filtered = customers.filter(
+      (c) =>
+        c.kycId.toLowerCase().includes(term) ||
+        c.name.toLowerCase().includes(term) ||
+        c.pan.toLowerCase().includes(term) ||
+        c.applicant.toLowerCase().includes(term)
     );
     setFilteredCustomers(filtered);
   }
@@ -101,26 +151,26 @@ export default function AdminPage() {
   async function checkAdminAndLoadData() {
     setLoading(true);
     setFetchError(null);
-    
+
     try {
-      console.log('Checking admin status for account:', account);
+      console.log("Checking admin status for account:", account);
       const contract = await getContract(true); // Use signer for admin verification
       const isAdminStatus = await contract.isAdmin(account);
-      console.log('Is admin:', isAdminStatus);
-      
+      console.log("Is admin:", isAdminStatus);
+
       if (isAdminStatus) {
         setIsAdmin(true);
-        console.log('Loading customer and bank data...');
+        console.log("Loading customer and bank data...");
         await Promise.all([loadCustomers(), loadBanks()]);
-        console.log('Data loading complete');
+        console.log("Data loading complete");
       } else {
         setIsAdmin(false);
-        console.log('User is not an admin');
+        console.log("User is not an admin");
       }
     } catch (error: any) {
-      console.error('Error checking admin:', error);
-      setFetchError(error.message || 'Failed to verify admin status');
-      toast.error('Failed to load dashboard data');
+      console.error("Error checking admin:", error);
+      setFetchError(error.message || "Failed to verify admin status");
+      toast.error("Failed to load dashboard data");
     } finally {
       setLoading(false);
     }
@@ -128,91 +178,91 @@ export default function AdminPage() {
 
   async function loadCustomers() {
     try {
-      console.log('Starting to load customers...');
+      console.log("Starting to load customers...");
       const contract = await getContract(true); // Use signer for admin-restricted reads
       const count = await contract.getAllCustomersCount();
       const totalCount = Number(count);
-      
-      console.log('Total customers in contract:', totalCount);
-      
+
+      console.log("Total customers in contract:", totalCount);
+
       if (totalCount === 0) {
-        console.log('No customers found in the system');
+        console.log("No customers found in the system");
         setCustomers([]);
         setFilteredCustomers([]);
-        toast.info('No customer applications found');
+        toast.info("No customer applications found");
         return;
       }
-      
+
       console.log(`Loading ${totalCount} customers...`);
       const customerDataPromises = [];
       for (let i = 0; i < totalCount; i++) {
         customerDataPromises.push(loadCustomerAtIndex(i));
       }
-      
+
       const customerData = await Promise.all(customerDataPromises);
-      const validCustomers = customerData.filter(c => c !== null) as CustomerData[];
-      
-      console.log('Successfully loaded customers:', validCustomers.length);
-      console.log('Customer data:', validCustomers);
-      
+      const validCustomers = customerData.filter(
+        (c) => c !== null
+      ) as CustomerData[];
+
+      console.log("Successfully loaded customers:", validCustomers.length);
+      console.log("Customer data:", validCustomers);
+
       setCustomers(validCustomers);
       setFilteredCustomers(validCustomers);
-      
+
       if (validCustomers.length > 0) {
-        toast.success(`Loaded ${validCustomers.length} customer application(s)`);
+        toast.success(
+          `Loaded ${validCustomers.length} customer application(s)`
+        );
       }
     } catch (error: any) {
-      console.error('Error loading customers:', error);
-      setFetchError(error.message || 'Failed to load customer data');
-      toast.error('Failed to load customer applications');
+      console.error("Error loading customers:", error);
+      setFetchError(error.message || "Failed to load customer data");
+      toast.error("Failed to load customer applications");
       setCustomers([]);
       setFilteredCustomers([]);
     }
   }
 
-  async function loadCustomerAtIndex(index: number): Promise<CustomerData | null> {
+  async function loadCustomerAtIndex(
+    index: number
+  ): Promise<CustomerData | null> {
     try {
       const contract = await getContract(true); // Use signer for admin-restricted reads
       const data = await contract.getCustomerAt(index);
-      
+
       console.log(`Loading customer at index ${index}:`, {
         kycId: data[0],
         name: data[1],
         pan: data[2],
-        status: Number(data[4])
+        status: Number(data[4]),
       });
-      
+
       // Get IPFS hashes from records
-      let ipfsAadhar = '';
-      let ipfsPan = '';
-      
+      let ipfsAadhar = "";
+      let ipfsPan = "";
+
       try {
-        console.log(`Fetching records for customer ${data[0]}...`);
         const recordsCount = await contract.getCustomerRecordsCount(data[0]);
         const totalRecords = Number(recordsCount);
-        
+
         console.log(`Customer ${data[0]} has ${totalRecords} records`);
-        
+
         for (let i = 0; i < totalRecords; i++) {
           const record = await contract.getCustomerRecord(data[0], i);
           const kind = record[0];
           const recordData = record[1];
-          
-          console.log(`Record ${i}: kind=${kind}, data=${recordData}`);
-          
-          if (kind === 'ipfsAadhar') {
+
+          if (kind === "aadhar") {
             ipfsAadhar = recordData;
-          } else if (kind === 'ipfsPan') {
+          } else if (kind === "pan") {
             ipfsPan = recordData;
           }
         }
-        
-        console.log(`Documents found for ${data[0]}: Aadhaar=${!!ipfsAadhar}, PAN=${!!ipfsPan}`);
-      } catch (err: any) {
-        console.error(`Error fetching records for customer ${data[0]}:`, err);
-        console.error('Error details:', err.message);
+      } catch (err) {
+        console.log(`No additional records found for customer: ${data[0]}`);
       }
-      
+
       return {
         kycId: data[0],
         name: data[1],
@@ -223,7 +273,7 @@ export default function AdminPage() {
         createdAt: data[6],
         updatedAt: data[7],
         ipfsAadhar,
-        ipfsPan
+        ipfsPan,
       };
     } catch (error: any) {
       console.error(`Error loading customer at index ${index}:`, error);
@@ -233,53 +283,53 @@ export default function AdminPage() {
 
   async function loadBanks() {
     try {
-      console.log('Loading banks...');
+      console.log("Loading banks...");
       const contract = await getContract(true); // Use signer for admin-restricted reads
       const bankIndex = await contract.bankIndex();
       const totalBanks = Number(bankIndex);
-      
-      console.log('Total banks:', totalBanks);
-      
+
+      console.log("Total banks:", totalBanks);
+
       const banksData: BankData[] = [];
       for (let i = 0; i < totalBanks; i++) {
         try {
           const bankAddr = await contract.BankList(i);
           const bankInfo = await contract.Banks(bankAddr);
-          
+
           banksData.push({
             id: Number(bankInfo[0]),
             bName: bankInfo[1],
             addr: bankInfo[2],
-            isApproved: bankInfo[3]
+            isApproved: bankInfo[3],
           });
         } catch (err) {
           console.error(`Error loading bank at index ${i}:`, err);
         }
       }
-      
-      console.log('Loaded banks:', banksData.length);
+
+      console.log("Loaded banks:", banksData.length);
       setBanks(banksData);
     } catch (error: any) {
-      console.error('Error loading banks:', error);
-      toast.error('Failed to load bank data');
+      console.error("Error loading banks:", error);
+      toast.error("Failed to load bank data");
     }
   }
 
   async function handleRefreshData() {
-    toast.loading('Refreshing data...', { id: 'refresh' });
+    toast.loading("Refreshing data...", { id: "refresh" });
     await checkAdminAndLoadData();
-    toast.success('Data refreshed', { id: 'refresh' });
+    toast.success("Data refreshed", { id: "refresh" });
   }
 
   async function handleAddBank() {
     if (!newBankName.trim() || !newBankAddress.trim()) {
-      toast.error('Please enter bank name and address');
+      toast.error("Please enter bank name and address");
       return;
     }
 
     // Validate Ethereum address
     if (!/^0x[a-fA-F0-9]{40}$/.test(newBankAddress)) {
-      toast.error('Invalid Ethereum address');
+      toast.error("Invalid Ethereum address");
       return;
     }
 
@@ -287,33 +337,43 @@ export default function AdminPage() {
     try {
       const contract = await getContract(true);
       const tx = await contract.addBank(newBankName, newBankAddress);
-      toast.loading('Adding bank...', { id: 'add-bank' });
+      toast.loading("Adding bank...", { id: "add-bank" });
       await tx.wait();
-      toast.success('Bank added successfully!', { id: 'add-bank' });
+      toast.success("Bank added successfully!", { id: "add-bank" });
       setShowAddBankDialog(false);
-      setNewBankName('');
-      setNewBankAddress('');
+      setNewBankName("");
+      setNewBankAddress("");
       await loadBanks();
     } catch (error: any) {
-      console.error('Error adding bank:', error);
-      toast.error(error.message || 'Failed to add bank', { id: 'add-bank' });
+      console.error("Error adding bank:", error);
+      toast.error(error.message || "Failed to add bank", { id: "add-bank" });
     } finally {
       setAddingBank(false);
     }
   }
 
-  async function handleToggleBankApproval(bankAddr: string, currentStatus: boolean) {
+  async function handleToggleBankApproval(
+    bankAddr: string,
+    currentStatus: boolean
+  ) {
     setProcessing(bankAddr);
     try {
       const contract = await getContract(true);
       const tx = await contract.setBankApproval(bankAddr, !currentStatus);
-      toast.loading(`${currentStatus ? 'Disapproving' : 'Approving'} bank...`, { id: 'bank-approval' });
+      toast.loading(`${currentStatus ? "Disapproving" : "Approving"} bank...`, {
+        id: "bank-approval",
+      });
       await tx.wait();
-      toast.success(`Bank ${currentStatus ? 'disapproved' : 'approved'} successfully!`, { id: 'bank-approval' });
+      toast.success(
+        `Bank ${currentStatus ? "disapproved" : "approved"} successfully!`,
+        { id: "bank-approval" }
+      );
       await loadBanks();
     } catch (error: any) {
-      console.error('Error toggling bank approval:', error);
-      toast.error(error.message || 'Failed to update bank approval', { id: 'bank-approval' });
+      console.error("Error toggling bank approval:", error);
+      toast.error(error.message || "Failed to update bank approval", {
+        id: "bank-approval",
+      });
     } finally {
       setProcessing(null);
     }
@@ -322,66 +382,75 @@ export default function AdminPage() {
   async function loadCustomerHistory(kycId: string) {
     setLoadingHistory(true);
     try {
-      const contract = await getContract(true); // Use signer for admin-restricted reads
+      const contract = await getContract();
       const count = await contract.getCustomerHistoryCount(kycId);
       const totalCount = Number(count);
-      
+
       const historyPromises = [];
       for (let i = 0; i < totalCount; i++) {
         historyPromises.push(contract.getCustomerHistoryEntry(kycId, i));
       }
-      
+
       const historyData = await Promise.all(historyPromises);
-      const history = historyData.map(h => ({
+      const history = historyData.map((h) => ({
         remarks: h[0],
         status: Number(h[1]),
-        time: h[2]
+        time: h[2],
       }));
-      
+
       setCustomerHistory(history);
     } catch (error) {
-      console.error('Error loading history:', error);
-      toast.error('Failed to load customer history');
+      console.error("Error loading history:", error);
+      toast.error("Failed to load customer history");
     } finally {
       setLoadingHistory(false);
     }
   }
 
-  async function handleAction(action: 'approve' | 'reject' | 'revoke', customer: CustomerData) {
+  async function handleAction(
+    action: "approve" | "reject" | "revoke",
+    customer: CustomerData
+  ) {
     setActionDialog({ type: action, customer });
-    setRemarks('');
+    setRemarks("");
   }
 
   async function executeAction() {
     if (!actionDialog) return;
-    
+
     const { type, customer } = actionDialog;
     setProcessing(customer.kycId);
-    
+
     try {
       const contract = await getContract(true);
       let tx;
-      
-      if (type === 'approve') {
-        const vcHash = customer.vcHash || '0x0000000000000000000000000000000000000000000000000000000000000000';
-        tx = await contract.adminApprove(customer.kycId, remarks || 'Approved', vcHash);
-        toast.loading('Approving KYC...', { id: 'action' });
-      } else if (type === 'reject') {
-        tx = await contract.adminReject(customer.kycId, remarks || 'Rejected');
-        toast.loading('Rejecting KYC...', { id: 'action' });
+
+      if (type === "approve") {
+        const vcHash =
+          customer.vcHash ||
+          "0x0000000000000000000000000000000000000000000000000000000000000000";
+        tx = await contract.adminApprove(
+          customer.kycId,
+          remarks || "Approved",
+          vcHash
+        );
+        toast.loading("Approving KYC...", { id: "action" });
+      } else if (type === "reject") {
+        tx = await contract.adminReject(customer.kycId, remarks || "Rejected");
+        toast.loading("Rejecting KYC...", { id: "action" });
       } else {
-        tx = await contract.adminRevoke(customer.kycId, remarks || 'Revoked');
-        toast.loading('Revoking KYC...', { id: 'action' });
+        tx = await contract.adminRevoke(customer.kycId, remarks || "Revoked");
+        toast.loading("Revoking KYC...", { id: "action" });
       }
-      
+
       await tx.wait();
-      toast.success(`KYC ${type}d successfully!`, { id: 'action' });
+      toast.success(`KYC ${type}d successfully!`, { id: "action" });
       setActionDialog(null);
-      setRemarks('');
+      setRemarks("");
       await loadCustomers();
     } catch (error: any) {
       console.error(`Error ${type}ing KYC:`, error);
-      toast.error(error.message || `Failed to ${type} KYC`, { id: 'action' });
+      toast.error(error.message || `Failed to ${type} KYC`, { id: "action" });
     } finally {
       setProcessing(null);
     }
@@ -424,11 +493,16 @@ export default function AdminPage() {
 
   function getStatusText(status: number) {
     switch (status) {
-      case 0: return 'Pending';
-      case 1: return 'Approved';
-      case 2: return 'Rejected';
-      case 3: return 'Revoked';
-      default: return 'Unknown';
+      case 0:
+        return "Pending";
+      case 1:
+        return "Approved";
+      case 2:
+        return "Rejected";
+      case 3:
+        return "Revoked";
+      default:
+        return "Unknown";
     }
   }
 
@@ -437,27 +511,15 @@ export default function AdminPage() {
     await loadCustomerHistory(customer.kycId);
   }
 
-  function openExternalUrl(url: string) {
-    const isInIframe = window.self !== window.top;
-    if (isInIframe) {
-      window.parent.postMessage({ type: "OPEN_EXTERNAL_URL", data: { url } }, "*");
-    } else {
-      window.open(url, "_blank", "noopener,noreferrer");
-    }
-  }
-
-  function viewDocumentInline(type: string, ipfsHash: string) {
-    const url = `https://gateway.pinata.cloud/ipfs/${ipfsHash}`;
-    setViewingDocument({ type, url });
-  }
-
   if (!account) {
     return (
       <div className="container mx-auto px-4 py-12">
         <Card className="max-w-2xl mx-auto">
           <CardHeader>
             <CardTitle>Admin Dashboard</CardTitle>
-            <CardDescription>Please connect your wallet to continue</CardDescription>
+            <CardDescription>
+              Please connect your wallet to continue
+            </CardDescription>
           </CardHeader>
           <CardContent>
             <Alert>
@@ -479,7 +541,9 @@ export default function AdminPage() {
             <CardContent className="pt-6">
               <div className="flex flex-col items-center justify-center space-y-4 py-8">
                 <Loader2 className="h-8 w-8 animate-spin" />
-                <p className="text-muted-foreground">Loading admin dashboard...</p>
+                <p className="text-muted-foreground">
+                  Loading admin dashboard...
+                </p>
               </div>
             </CardContent>
           </Card>
@@ -501,7 +565,8 @@ export default function AdminPage() {
           <CardContent>
             <Alert variant="destructive">
               <AlertDescription>
-                You do not have admin privileges. Only the contract admin can access this dashboard.
+                You do not have admin privileges. Only the contract admin can
+                access this dashboard.
               </AlertDescription>
             </Alert>
           </CardContent>
@@ -510,10 +575,10 @@ export default function AdminPage() {
     );
   }
 
-  const pendingCustomers = filteredCustomers.filter(c => c.status === 0);
-  const approvedCustomers = filteredCustomers.filter(c => c.status === 1);
-  const rejectedCustomers = filteredCustomers.filter(c => c.status === 2);
-  const revokedCustomers = filteredCustomers.filter(c => c.status === 3);
+  const pendingCustomers = filteredCustomers.filter((c) => c.status === 0);
+  const approvedCustomers = filteredCustomers.filter((c) => c.status === 1);
+  const rejectedCustomers = filteredCustomers.filter((c) => c.status === 2);
+  const revokedCustomers = filteredCustomers.filter((c) => c.status === 3);
 
   return (
     <div className="container mx-auto px-4 py-12">
@@ -567,34 +632,50 @@ export default function AdminPage() {
                 <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
                   <Card>
                     <CardHeader className="pb-3">
-                      <CardTitle className="text-sm font-medium">Pending</CardTitle>
+                      <CardTitle className="text-sm font-medium">
+                        Pending
+                      </CardTitle>
                     </CardHeader>
                     <CardContent>
-                      <div className="text-2xl font-bold">{customers.filter(c => c.status === 0).length}</div>
+                      <div className="text-2xl font-bold">
+                        {customers.filter((c) => c.status === 0).length}
+                      </div>
                     </CardContent>
                   </Card>
                   <Card>
                     <CardHeader className="pb-3">
-                      <CardTitle className="text-sm font-medium">Approved</CardTitle>
+                      <CardTitle className="text-sm font-medium">
+                        Approved
+                      </CardTitle>
                     </CardHeader>
                     <CardContent>
-                      <div className="text-2xl font-bold">{customers.filter(c => c.status === 1).length}</div>
+                      <div className="text-2xl font-bold">
+                        {customers.filter((c) => c.status === 1).length}
+                      </div>
                     </CardContent>
                   </Card>
                   <Card>
                     <CardHeader className="pb-3">
-                      <CardTitle className="text-sm font-medium">Rejected</CardTitle>
+                      <CardTitle className="text-sm font-medium">
+                        Rejected
+                      </CardTitle>
                     </CardHeader>
                     <CardContent>
-                      <div className="text-2xl font-bold">{customers.filter(c => c.status === 2).length}</div>
+                      <div className="text-2xl font-bold">
+                        {customers.filter((c) => c.status === 2).length}
+                      </div>
                     </CardContent>
                   </Card>
                   <Card>
                     <CardHeader className="pb-3">
-                      <CardTitle className="text-sm font-medium">Revoked</CardTitle>
+                      <CardTitle className="text-sm font-medium">
+                        Revoked
+                      </CardTitle>
                     </CardHeader>
                     <CardContent>
-                      <div className="text-2xl font-bold">{customers.filter(c => c.status === 3).length}</div>
+                      <div className="text-2xl font-bold">
+                        {customers.filter((c) => c.status === 3).length}
+                      </div>
                     </CardContent>
                   </Card>
                 </div>
@@ -615,17 +696,27 @@ export default function AdminPage() {
 
                 <Tabs defaultValue="pending" className="w-full">
                   <TabsList className="grid w-full grid-cols-4">
-                    <TabsTrigger value="pending">Pending ({pendingCustomers.length})</TabsTrigger>
-                    <TabsTrigger value="approved">Approved ({approvedCustomers.length})</TabsTrigger>
-                    <TabsTrigger value="rejected">Rejected ({rejectedCustomers.length})</TabsTrigger>
-                    <TabsTrigger value="revoked">Revoked ({revokedCustomers.length})</TabsTrigger>
+                    <TabsTrigger value="pending">
+                      Pending ({pendingCustomers.length})
+                    </TabsTrigger>
+                    <TabsTrigger value="approved">
+                      Approved ({approvedCustomers.length})
+                    </TabsTrigger>
+                    <TabsTrigger value="rejected">
+                      Rejected ({rejectedCustomers.length})
+                    </TabsTrigger>
+                    <TabsTrigger value="revoked">
+                      Revoked ({revokedCustomers.length})
+                    </TabsTrigger>
                   </TabsList>
 
                   <TabsContent value="pending" className="space-y-4">
                     {pendingCustomers.length === 0 ? (
                       <Card>
                         <CardContent className="pt-6 text-center text-muted-foreground">
-                          {searchTerm ? 'No matching pending applications' : 'No pending applications'}
+                          {searchTerm
+                            ? "No matching pending applications"
+                            : "No pending applications"}
                         </CardContent>
                       </Card>
                     ) : (
@@ -637,7 +728,9 @@ export default function AdminPage() {
                                 <CardTitle>{customer.name}</CardTitle>
                                 <CardDescription className="mt-1 space-y-1">
                                   <div>KYC ID: {customer.kycId}</div>
-                                  <div className="text-xs">{customer.applicant}</div>
+                                  <div className="text-xs">
+                                    {customer.applicant}
+                                  </div>
                                 </CardDescription>
                               </div>
                               {getStatusBadge(customer.status)}
@@ -646,60 +739,56 @@ export default function AdminPage() {
                           <CardContent className="space-y-4">
                             <div className="grid grid-cols-2 gap-4">
                               <div>
-                                <p className="text-sm text-muted-foreground">PAN Number</p>
+                                <p className="text-sm text-muted-foreground">
+                                  PAN Number
+                                </p>
                                 <p className="font-medium">{customer.pan}</p>
                               </div>
                               <div>
-                                <p className="text-sm text-muted-foreground">Submitted On</p>
+                                <p className="text-sm text-muted-foreground">
+                                  Submitted On
+                                </p>
                                 <p className="font-medium">
-                                  {new Date(Number(customer.createdAt) * 1000).toLocaleDateString()}
+                                  {new Date(
+                                    Number(customer.createdAt) * 1000
+                                  ).toLocaleDateString()}
                                 </p>
                               </div>
                             </div>
-                            
+
                             {(customer.ipfsAadhar || customer.ipfsPan) && (
                               <div className="space-y-2">
-                                <p className="text-sm font-medium">Uploaded Documents:</p>
-                                <div className="flex flex-wrap gap-2">
+                                <p className="text-sm font-medium">
+                                  Documents:
+                                </p>
+                                <div className="flex gap-2">
+                                  {/* --- UPDATED BUTTON --- */}
                                   {customer.ipfsAadhar && (
-                                    <>
-                                      <Button
-                                        variant="outline"
-                                        size="sm"
-                                        onClick={() => viewDocumentInline('Aadhaar', customer.ipfsAadhar!)}
-                                      >
-                                        <ImageIcon className="mr-2 h-4 w-4" />
-                                        View Aadhaar
-                                      </Button>
-                                      <Button
-                                        variant="ghost"
-                                        size="sm"
-                                        onClick={() => openExternalUrl(`https://gateway.pinata.cloud/ipfs/${customer.ipfsAadhar}`)}
-                                      >
-                                        <ExternalLink className="mr-2 h-3 w-3" />
-                                        Open
-                                      </Button>
-                                    </>
+                                    <Button
+                                      variant="outline"
+                                      size="sm"
+                                      onClick={() =>
+                                        handleViewDoc(customer.ipfsAadhar)
+                                      }
+                                    >
+                                      <FileText className="mr-2 h-4 w-4" />
+                                      View Aadhaar
+                                      <ExternalLink className="ml-2 h-3 w-3" />
+                                    </Button>
                                   )}
+                                  {/* --- UPDATED BUTTON --- */}
                                   {customer.ipfsPan && (
-                                    <>
-                                      <Button
-                                        variant="outline"
-                                        size="sm"
-                                        onClick={() => viewDocumentInline('PAN', customer.ipfsPan!)}
-                                      >
-                                        <ImageIcon className="mr-2 h-4 w-4" />
-                                        View PAN
-                                      </Button>
-                                      <Button
-                                        variant="ghost"
-                                        size="sm"
-                                        onClick={() => openExternalUrl(`https://gateway.pinata.cloud/ipfs/${customer.ipfsPan}`)}
-                                      >
-                                        <ExternalLink className="mr-2 h-3 w-3" />
-                                        Open
-                                      </Button>
-                                    </>
+                                    <Button
+                                      variant="outline"
+                                      size="sm"
+                                      onClick={() =>
+                                        handleViewDoc(customer.ipfsPan)
+                                      }
+                                    >
+                                      <FileText className="mr-2 h-4 w-4" />
+                                      View PAN
+                                      <ExternalLink className="ml-2 h-3 w-3" />
+                                    </Button>
                                   )}
                                 </div>
                               </div>
@@ -715,7 +804,9 @@ export default function AdminPage() {
                                 View Details
                               </Button>
                               <Button
-                                onClick={() => handleAction('approve', customer)}
+                                onClick={() =>
+                                  handleAction("approve", customer)
+                                }
                                 disabled={processing === customer.kycId}
                                 className="flex-1"
                               >
@@ -728,7 +819,7 @@ export default function AdminPage() {
                               </Button>
                               <Button
                                 variant="destructive"
-                                onClick={() => handleAction('reject', customer)}
+                                onClick={() => handleAction("reject", customer)}
                                 disabled={processing === customer.kycId}
                                 className="flex-1"
                               >
@@ -750,7 +841,9 @@ export default function AdminPage() {
                     {approvedCustomers.length === 0 ? (
                       <Card>
                         <CardContent className="pt-6 text-center text-muted-foreground">
-                          {searchTerm ? 'No matching approved customers' : 'No approved customers'}
+                          {searchTerm
+                            ? "No matching approved customers"
+                            : "No approved customers"}
                         </CardContent>
                       </Card>
                     ) : (
@@ -762,7 +855,9 @@ export default function AdminPage() {
                                 <CardTitle>{customer.name}</CardTitle>
                                 <CardDescription className="mt-1 space-y-1">
                                   <div>KYC ID: {customer.kycId}</div>
-                                  <div className="text-xs">{customer.applicant}</div>
+                                  <div className="text-xs">
+                                    {customer.applicant}
+                                  </div>
                                 </CardDescription>
                               </div>
                               {getStatusBadge(customer.status)}
@@ -771,60 +866,56 @@ export default function AdminPage() {
                           <CardContent className="space-y-4">
                             <div className="grid grid-cols-2 gap-4">
                               <div>
-                                <p className="text-sm text-muted-foreground">PAN Number</p>
+                                <p className="text-sm text-muted-foreground">
+                                  PAN Number
+                                </p>
                                 <p className="font-medium">{customer.pan}</p>
                               </div>
                               <div>
-                                <p className="text-sm text-muted-foreground">Approved On</p>
+                                <p className="text-sm text-muted-foreground">
+                                  Approved On
+                                </p>
                                 <p className="font-medium">
-                                  {new Date(Number(customer.updatedAt) * 1000).toLocaleDateString()}
+                                  {new Date(
+                                    Number(customer.updatedAt) * 1000
+                                  ).toLocaleDateString()}
                                 </p>
                               </div>
                             </div>
-                            
+
                             {(customer.ipfsAadhar || customer.ipfsPan) && (
                               <div className="space-y-2">
-                                <p className="text-sm font-medium">Uploaded Documents:</p>
-                                <div className="flex flex-wrap gap-2">
+                                <p className="text-sm font-medium">
+                                  Documents:
+                                </p>
+                                <div className="flex gap-2">
+                                  {/* --- UPDATED BUTTON --- */}
                                   {customer.ipfsAadhar && (
-                                    <>
-                                      <Button
-                                        variant="outline"
-                                        size="sm"
-                                        onClick={() => viewDocumentInline('Aadhaar', customer.ipfsAadhar!)}
-                                      >
-                                        <ImageIcon className="mr-2 h-4 w-4" />
-                                        View Aadhaar
-                                      </Button>
-                                      <Button
-                                        variant="ghost"
-                                        size="sm"
-                                        onClick={() => openExternalUrl(`https://gateway.pinata.cloud/ipfs/${customer.ipfsAadhar}`)}
-                                      >
-                                        <ExternalLink className="mr-2 h-3 w-3" />
-                                        Open
-                                      </Button>
-                                    </>
+                                    <Button
+                                      variant="outline"
+                                      size="sm"
+                                      onClick={() =>
+                                        handleViewDoc(customer.ipfsAadhar)
+                                      }
+                                    >
+                                      <FileText className="mr-2 h-4 w-4" />
+                                      View Aadhaar
+                                      <ExternalLink className="ml-2 h-3 w-3" />
+                                    </Button>
                                   )}
+                                  {/* --- UPDATED BUTTON --- */}
                                   {customer.ipfsPan && (
-                                    <>
-                                      <Button
-                                        variant="outline"
-                                        size="sm"
-                                        onClick={() => viewDocumentInline('PAN', customer.ipfsPan!)}
-                                      >
-                                        <ImageIcon className="mr-2 h-4 w-4" />
-                                        View PAN
-                                      </Button>
-                                      <Button
-                                        variant="ghost"
-                                        size="sm"
-                                        onClick={() => openExternalUrl(`https://gateway.pinata.cloud/ipfs/${customer.ipfsPan}`)}
-                                      >
-                                        <ExternalLink className="mr-2 h-3 w-3" />
-                                        Open
-                                      </Button>
-                                    </>
+                                    <Button
+                                      variant="outline"
+                                      size="sm"
+                                      onClick={() =>
+                                        handleViewDoc(customer.ipfsPan)
+                                      }
+                                    >
+                                      <FileText className="mr-2 h-4 w-4" />
+                                      View PAN
+                                      <ExternalLink className="ml-2 h-3 w-3" />
+                                    </Button>
                                   )}
                                 </div>
                               </div>
@@ -841,7 +932,7 @@ export default function AdminPage() {
                               </Button>
                               <Button
                                 variant="destructive"
-                                onClick={() => handleAction('revoke', customer)}
+                                onClick={() => handleAction("revoke", customer)}
                                 disabled={processing === customer.kycId}
                                 className="flex-1"
                               >
@@ -863,7 +954,9 @@ export default function AdminPage() {
                     {rejectedCustomers.length === 0 ? (
                       <Card>
                         <CardContent className="pt-6 text-center text-muted-foreground">
-                          {searchTerm ? 'No matching rejected applications' : 'No rejected applications'}
+                          {searchTerm
+                            ? "No matching rejected applications"
+                            : "No rejected applications"}
                         </CardContent>
                       </Card>
                     ) : (
@@ -875,7 +968,9 @@ export default function AdminPage() {
                                 <CardTitle>{customer.name}</CardTitle>
                                 <CardDescription className="mt-1 space-y-1">
                                   <div>KYC ID: {customer.kycId}</div>
-                                  <div className="text-xs">{customer.applicant}</div>
+                                  <div className="text-xs">
+                                    {customer.applicant}
+                                  </div>
                                 </CardDescription>
                               </div>
                               {getStatusBadge(customer.status)}
@@ -884,17 +979,23 @@ export default function AdminPage() {
                           <CardContent className="space-y-4">
                             <div className="grid grid-cols-2 gap-4">
                               <div>
-                                <p className="text-sm text-muted-foreground">PAN Number</p>
+                                <p className="text-sm text-muted-foreground">
+                                  PAN Number
+                                </p>
                                 <p className="font-medium">{customer.pan}</p>
                               </div>
                               <div>
-                                <p className="text-sm text-muted-foreground">Rejected On</p>
+                                <p className="text-sm text-muted-foreground">
+                                  Rejected On
+                                </p>
                                 <p className="font-medium">
-                                  {new Date(Number(customer.updatedAt) * 1000).toLocaleDateString()}
+                                  {new Date(
+                                    Number(customer.updatedAt) * 1000
+                                  ).toLocaleDateString()}
                                 </p>
                               </div>
                             </div>
-                            
+
                             <Button
                               onClick={() => handleViewDetails(customer)}
                               variant="outline"
@@ -913,7 +1014,9 @@ export default function AdminPage() {
                     {revokedCustomers.length === 0 ? (
                       <Card>
                         <CardContent className="pt-6 text-center text-muted-foreground">
-                          {searchTerm ? 'No matching revoked customers' : 'No revoked customers'}
+                          {searchTerm
+                            ? "No matching revoked customers"
+                            : "No revoked customers"}
                         </CardContent>
                       </Card>
                     ) : (
@@ -925,7 +1028,9 @@ export default function AdminPage() {
                                 <CardTitle>{customer.name}</CardTitle>
                                 <CardDescription className="mt-1 space-y-1">
                                   <div>KYC ID: {customer.kycId}</div>
-                                  <div className="text-xs">{customer.applicant}</div>
+                                  <div className="text-xs">
+                                    {customer.applicant}
+                                  </div>
                                 </CardDescription>
                               </div>
                               {getStatusBadge(customer.status)}
@@ -934,17 +1039,23 @@ export default function AdminPage() {
                           <CardContent className="space-y-4">
                             <div className="grid grid-cols-2 gap-4">
                               <div>
-                                <p className="text-sm text-muted-foreground">PAN Number</p>
+                                <p className="text-sm text-muted-foreground">
+                                  PAN Number
+                                </p>
                                 <p className="font-medium">{customer.pan}</p>
                               </div>
                               <div>
-                                <p className="text-sm text-muted-foreground">Revoked On</p>
+                                <p className="text-sm text-muted-foreground">
+                                  Revoked On
+                                </p>
                                 <p className="font-medium">
-                                  {new Date(Number(customer.updatedAt) * 1000).toLocaleDateString()}
+                                  {new Date(
+                                    Number(customer.updatedAt) * 1000
+                                  ).toLocaleDateString()}
                                 </p>
                               </div>
                             </div>
-                            
+
                             <Button
                               onClick={() => handleViewDetails(customer)}
                               variant="outline"
@@ -969,7 +1080,9 @@ export default function AdminPage() {
                 <div className="flex items-center justify-between">
                   <div>
                     <CardTitle>Registered Banks</CardTitle>
-                    <CardDescription>Manage bank registrations and approvals</CardDescription>
+                    <CardDescription>
+                      Manage bank registrations and approvals
+                    </CardDescription>
                   </div>
                   <Button onClick={() => setShowAddBankDialog(true)}>
                     <Plus className="mr-2 h-4 w-4" />
@@ -992,7 +1105,9 @@ export default function AdminPage() {
                               <Building2 className="h-8 w-8 text-muted-foreground" />
                               <div>
                                 <p className="font-semibold">{bank.bName}</p>
-                                <p className="text-sm text-muted-foreground">{bank.addr}</p>
+                                <p className="text-sm text-muted-foreground">
+                                  {bank.addr}
+                                </p>
                               </div>
                             </div>
                             <div className="flex items-center gap-2">
@@ -1008,9 +1123,16 @@ export default function AdminPage() {
                                 </Badge>
                               )}
                               <Button
-                                variant={bank.isApproved ? "destructive" : "default"}
+                                variant={
+                                  bank.isApproved ? "destructive" : "default"
+                                }
                                 size="sm"
-                                onClick={() => handleToggleBankApproval(bank.addr, bank.isApproved)}
+                                onClick={() =>
+                                  handleToggleBankApproval(
+                                    bank.addr,
+                                    bank.isApproved
+                                  )
+                                }
                                 disabled={processing === bank.addr}
                               >
                                 {processing === bank.addr ? (
@@ -1049,7 +1171,7 @@ export default function AdminPage() {
               Register a new bank that can validate customer KYC status
             </DialogDescription>
           </DialogHeader>
-          
+
           <div className="space-y-4">
             <div className="space-y-2">
               <Label htmlFor="bankName">Bank Name</Label>
@@ -1060,7 +1182,7 @@ export default function AdminPage() {
                 placeholder="e.g., State Bank of India"
               />
             </div>
-            
+
             <div className="space-y-2">
               <Label htmlFor="bankAddress">Bank Wallet Address</Label>
               <Input
@@ -1071,9 +1193,12 @@ export default function AdminPage() {
               />
             </div>
           </div>
-          
+
           <DialogFooter>
-            <Button variant="outline" onClick={() => setShowAddBankDialog(false)}>
+            <Button
+              variant="outline"
+              onClick={() => setShowAddBankDialog(false)}
+            >
               Cancel
             </Button>
             <Button onClick={handleAddBank} disabled={addingBank}>
@@ -1093,25 +1218,34 @@ export default function AdminPage() {
         <DialogContent>
           <DialogHeader>
             <DialogTitle>
-              {actionDialog?.type === 'approve' && 'Approve KYC Application'}
-              {actionDialog?.type === 'reject' && 'Reject KYC Application'}
-              {actionDialog?.type === 'revoke' && 'Revoke KYC'}
+              {actionDialog?.type === "approve" && "Approve KYC Application"}
+              {actionDialog?.type === "reject" && "Reject KYC Application"}
+              {actionDialog?.type === "revoke" && "Revoke KYC"}
             </DialogTitle>
             <DialogDescription>
-              {actionDialog?.type === 'approve' && 'This will approve the KYC application and allow the customer to use their verified status.'}
-              {actionDialog?.type === 'reject' && 'This will reject the KYC application. The customer can submit a new application.'}
-              {actionDialog?.type === 'revoke' && 'This will revoke the previously approved KYC. This action should be used carefully.'}
+              {actionDialog?.type === "approve" &&
+                "This will approve the KYC application and allow the customer to use their verified status."}
+              {actionDialog?.type === "reject" &&
+                "This will reject the KYC application. The customer can submit a new application."}
+              {actionDialog?.type === "revoke" &&
+                "This will revoke the previously approved KYC. This action should be used carefully."}
             </DialogDescription>
           </DialogHeader>
-          
+
           {actionDialog && (
             <div className="space-y-4">
               <div>
-                <p className="text-sm font-medium">Customer: {actionDialog.customer.name}</p>
-                <p className="text-sm text-muted-foreground">KYC ID: {actionDialog.customer.kycId}</p>
-                <p className="text-sm text-muted-foreground">PAN: {actionDialog.customer.pan}</p>
+                <p className="text-sm font-medium">
+                  Customer: {actionDialog.customer.name}
+                </p>
+                <p className="text-sm text-muted-foreground">
+                  KYC ID: {actionDialog.customer.kycId}
+                </p>
+                <p className="text-sm text-muted-foreground">
+                  PAN: {actionDialog.customer.pan}
+                </p>
               </div>
-              
+
               <div className="space-y-2">
                 <Label htmlFor="remarks">Remarks (Optional)</Label>
                 <Textarea
@@ -1124,7 +1258,7 @@ export default function AdminPage() {
               </div>
             </div>
           )}
-          
+
           <DialogFooter>
             <Button variant="outline" onClick={() => setActionDialog(null)}>
               Cancel
@@ -1132,72 +1266,29 @@ export default function AdminPage() {
             <Button
               onClick={executeAction}
               disabled={!!processing}
-              variant={actionDialog?.type === 'approve' ? 'default' : 'destructive'}
+              variant={
+                actionDialog?.type === "approve" ? "default" : "destructive"
+              }
             >
               {processing ? (
                 <Loader2 className="mr-2 h-4 w-4 animate-spin" />
               ) : null}
-              Confirm {actionDialog?.type === 'approve' ? 'Approval' : actionDialog?.type === 'reject' ? 'Rejection' : 'Revocation'}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-
-      {/* Document Viewer Dialog */}
-      <Dialog open={!!viewingDocument} onOpenChange={() => setViewingDocument(null)}>
-        <DialogContent className="max-w-4xl max-h-[90vh]">
-          <DialogHeader>
-            <DialogTitle>{viewingDocument?.type} Document</DialogTitle>
-            <DialogDescription>
-              Review the uploaded document
-            </DialogDescription>
-          </DialogHeader>
-          
-          {viewingDocument && (
-            <div className="space-y-4">
-              <div className="border rounded-lg overflow-hidden bg-muted">
-                <img 
-                  src={viewingDocument.url} 
-                  alt={`${viewingDocument.type} document`}
-                  className="w-full h-auto max-h-[60vh] object-contain"
-                  onError={(e) => {
-                    const target = e.target as HTMLImageElement;
-                    target.style.display = 'none';
-                    toast.error('Failed to load document. It may not be an image file.');
-                  }}
-                />
-              </div>
-              <div className="flex gap-2">
-                <Button
-                  variant="outline"
-                  onClick={() => openExternalUrl(viewingDocument.url)}
-                  className="flex-1"
-                >
-                  <ExternalLink className="mr-2 h-4 w-4" />
-                  Open in New Tab
-                </Button>
-                <Button
-                  variant="outline"
-                  onClick={() => openExternalUrl(viewingDocument.url)}
-                  className="flex-1"
-                >
-                  <Download className="mr-2 h-4 w-4" />
-                  Download
-                </Button>
-              </div>
-            </div>
-          )}
-          
-          <DialogFooter>
-            <Button onClick={() => setViewingDocument(null)}>
-              Close
+              Confirm{" "}
+              {actionDialog?.type === "approve"
+                ? "Approval"
+                : actionDialog?.type === "reject"
+                  ? "Rejection"
+                  : "Revocation"}
             </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
 
       {/* View Details Dialog */}
-      <Dialog open={!!viewingCustomer} onOpenChange={() => setViewingCustomer(null)}>
+      <Dialog
+        open={!!viewingCustomer}
+        onOpenChange={() => setViewingCustomer(null)}
+      >
         <DialogContent className="max-w-3xl max-h-[80vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>Customer Details</DialogTitle>
@@ -1205,7 +1296,7 @@ export default function AdminPage() {
               Complete information and history for this KYC application
             </DialogDescription>
           </DialogHeader>
-          
+
           {viewingCustomer && (
             <div className="space-y-6">
               {/* Basic Info */}
@@ -1221,7 +1312,9 @@ export default function AdminPage() {
                   </div>
                   <div>
                     <p className="text-muted-foreground">Status</p>
-                    <div className="mt-1">{getStatusBadge(viewingCustomer.status)}</div>
+                    <div className="mt-1">
+                      {getStatusBadge(viewingCustomer.status)}
+                    </div>
                   </div>
                   <div>
                     <p className="text-muted-foreground">KYC ID</p>
@@ -1233,18 +1326,24 @@ export default function AdminPage() {
                   </div>
                   <div className="col-span-2">
                     <p className="text-muted-foreground">Wallet Address</p>
-                    <p className="font-medium text-xs break-all">{viewingCustomer.applicant}</p>
+                    <p className="font-medium text-xs break-all">
+                      {viewingCustomer.applicant}
+                    </p>
                   </div>
                   <div>
                     <p className="text-muted-foreground">Submitted On</p>
                     <p className="font-medium">
-                      {new Date(Number(viewingCustomer.createdAt) * 1000).toLocaleString()}
+                      {new Date(
+                        Number(viewingCustomer.createdAt) * 1000
+                      ).toLocaleString()}
                     </p>
                   </div>
                   <div>
                     <p className="text-muted-foreground">Last Updated</p>
                     <p className="font-medium">
-                      {new Date(Number(viewingCustomer.updatedAt) * 1000).toLocaleString()}
+                      {new Date(
+                        Number(viewingCustomer.updatedAt) * 1000
+                      ).toLocaleString()}
                     </p>
                   </div>
                 </div>
@@ -1255,88 +1354,34 @@ export default function AdminPage() {
                 <div className="space-y-3">
                   <h3 className="font-semibold flex items-center gap-2">
                     <FileText className="h-4 w-4" />
-                    Submitted Documents
+                    Documents
                   </h3>
-                  <div className="space-y-3">
+                  {/* --- UPDATED BUTTONS --- */}
+                  <div className="flex gap-2">
                     {viewingCustomer.ipfsAadhar && (
-                      <Card>
-                        <CardHeader className="pb-3">
-                          <CardTitle className="text-sm">Aadhaar Document</CardTitle>
-                        </CardHeader>
-                        <CardContent className="space-y-3">
-                          <div className="border rounded-lg overflow-hidden bg-muted">
-                            <img 
-                              src={`https://gateway.pinata.cloud/ipfs/${viewingCustomer.ipfsAadhar}`}
-                              alt="Aadhaar document"
-                              className="w-full h-auto max-h-[300px] object-contain cursor-pointer hover:opacity-90 transition-opacity"
-                              onClick={() => viewDocumentInline('Aadhaar', viewingCustomer.ipfsAadhar!)}
-                              onError={(e) => {
-                                const target = e.target as HTMLImageElement;
-                                target.style.display = 'none';
-                              }}
-                            />
-                          </div>
-                          <div className="flex gap-2">
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              onClick={() => viewDocumentInline('Aadhaar', viewingCustomer.ipfsAadhar!)}
-                            >
-                              <Eye className="mr-2 h-4 w-4" />
-                              View Full Size
-                            </Button>
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              onClick={() => openExternalUrl(`https://gateway.pinata.cloud/ipfs/${viewingCustomer.ipfsAadhar}`)}
-                            >
-                              <ExternalLink className="mr-2 h-3 w-3" />
-                              Open External
-                            </Button>
-                          </div>
-                        </CardContent>
-                      </Card>
+                      <Button
+                        variant="outline"
+                        onClick={() =>
+                          handleViewDoc(viewingCustomer.ipfsAadhar)
+                        }
+                      >
+                        <FileText className="mr-2 h-4 w-4" />
+                        View Aadhaar Document
+                        <ExternalLink className="ml-2 h-3 w-3" />
+                      </Button>
                     )}
                     {viewingCustomer.ipfsPan && (
-                      <Card>
-                        <CardHeader className="pb-3">
-                          <CardTitle className="text-sm">PAN Document</CardTitle>
-                        </CardHeader>
-                        <CardContent className="space-y-3">
-                          <div className="border rounded-lg overflow-hidden bg-muted">
-                            <img 
-                              src={`https://gateway.pinata.cloud/ipfs/${viewingCustomer.ipfsPan}`}
-                              alt="PAN document"
-                              className="w-full h-auto max-h-[300px] object-contain cursor-pointer hover:opacity-90 transition-opacity"
-                              onClick={() => viewDocumentInline('PAN', viewingCustomer.ipfsPan!)}
-                              onError={(e) => {
-                                const target = e.target as HTMLImageElement;
-                                target.style.display = 'none';
-                              }}
-                            />
-                          </div>
-                          <div className="flex gap-2">
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              onClick={() => viewDocumentInline('PAN', viewingCustomer.ipfsPan!)}
-                            >
-                              <Eye className="mr-2 h-4 w-4" />
-                              View Full Size
-                            </Button>
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              onClick={() => openExternalUrl(`https://gateway.pinata.cloud/ipfs/${viewingCustomer.ipfsPan}`)}
-                            >
-                              <ExternalLink className="mr-2 h-3 w-3" />
-                              Open External
-                            </Button>
-                          </div>
-                        </CardContent>
-                      </Card>
+                      <Button
+                        variant="outline"
+                        onClick={() => handleViewDoc(viewingCustomer.ipfsPan)}
+                      >
+                        <FileText className="mr-2 h-4 w-4" />
+                        View PAN Document
+                        <ExternalLink className="ml-2 h-3 w-3" />
+                      </Button>
                     )}
                   </div>
+                  {/* --- END --- */}
                 </div>
               )}
 
@@ -1351,22 +1396,31 @@ export default function AdminPage() {
                     <Loader2 className="h-6 w-6 animate-spin" />
                   </div>
                 ) : customerHistory.length === 0 ? (
-                  <p className="text-sm text-muted-foreground">No history available</p>
+                  <p className="text-sm text-muted-foreground">
+                    No history available
+                  </p>
                 ) : (
                   <div className="space-y-3">
                     {customerHistory.map((entry, index) => (
-                      <div key={index} className="border rounded-lg p-3 space-y-2">
+                      <div
+                        key={index}
+                        className="border rounded-lg p-3 space-y-2"
+                      >
                         <div className="flex items-center justify-between">
                           <div className="font-medium text-sm">
                             Status changed to: {getStatusText(entry.status)}
                           </div>
                           <div className="text-xs text-muted-foreground">
-                            {new Date(Number(entry.time) * 1000).toLocaleString()}
+                            {new Date(
+                              Number(entry.time) * 1000
+                            ).toLocaleString()}
                           </div>
                         </div>
                         {entry.remarks && (
                           <div className="text-sm">
-                            <span className="text-muted-foreground">Remarks: </span>
+                            <span className="text-muted-foreground">
+                              Remarks:{" "}
+                            </span>
                             {entry.remarks}
                           </div>
                         )}
@@ -1377,7 +1431,7 @@ export default function AdminPage() {
               </div>
             </div>
           )}
-          
+
           <DialogFooter>
             <Button variant="outline" onClick={() => setViewingCustomer(null)}>
               Close
