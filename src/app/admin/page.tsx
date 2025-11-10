@@ -12,7 +12,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
-import { Loader2, CheckCircle2, XCircle, Clock, Shield, AlertTriangle, Search, FileText, History, ExternalLink, Eye, Building2, Plus, Ban, RefreshCw } from 'lucide-react';
+import { Loader2, CheckCircle2, XCircle, Clock, Shield, AlertTriangle, Search, FileText, History, ExternalLink, Eye, Building2, Plus, Ban, RefreshCw, Download, Image as ImageIcon } from 'lucide-react';
 import { toast } from 'sonner';
 
 interface CustomerData {
@@ -60,6 +60,7 @@ export default function AdminPage() {
   const [customerHistory, setCustomerHistory] = useState<HistoryEntry[]>([]);
   const [loadingHistory, setLoadingHistory] = useState(false);
   const [fetchError, setFetchError] = useState<string | null>(null);
+  const [viewingDocument, setViewingDocument] = useState<{type: string, url: string} | null>(null);
   
   // Bank management states
   const [banks, setBanks] = useState<BankData[]>([]);
@@ -430,6 +431,20 @@ export default function AdminPage() {
     await loadCustomerHistory(customer.kycId);
   }
 
+  function openExternalUrl(url: string) {
+    const isInIframe = window.self !== window.top;
+    if (isInIframe) {
+      window.parent.postMessage({ type: "OPEN_EXTERNAL_URL", data: { url } }, "*");
+    } else {
+      window.open(url, "_blank", "noopener,noreferrer");
+    }
+  }
+
+  function viewDocumentInline(type: string, ipfsHash: string) {
+    const url = `https://gateway.pinata.cloud/ipfs/${ipfsHash}`;
+    setViewingDocument({ type, url });
+  }
+
   if (!account) {
     return (
       <div className="container mx-auto px-4 py-12">
@@ -638,29 +653,47 @@ export default function AdminPage() {
                             
                             {(customer.ipfsAadhar || customer.ipfsPan) && (
                               <div className="space-y-2">
-                                <p className="text-sm font-medium">Documents:</p>
-                                <div className="flex gap-2">
+                                <p className="text-sm font-medium">Uploaded Documents:</p>
+                                <div className="flex flex-wrap gap-2">
                                   {customer.ipfsAadhar && (
-                                    <Button
-                                      variant="outline"
-                                      size="sm"
-                                      onClick={() => window.open(`https://gateway.pinata.cloud/ipfs/${customer.ipfsAadhar}`, '_blank')}
-                                    >
-                                      <FileText className="mr-2 h-4 w-4" />
-                                      View Aadhaar
-                                      <ExternalLink className="ml-2 h-3 w-3" />
-                                    </Button>
+                                    <>
+                                      <Button
+                                        variant="outline"
+                                        size="sm"
+                                        onClick={() => viewDocumentInline('Aadhaar', customer.ipfsAadhar!)}
+                                      >
+                                        <ImageIcon className="mr-2 h-4 w-4" />
+                                        View Aadhaar
+                                      </Button>
+                                      <Button
+                                        variant="ghost"
+                                        size="sm"
+                                        onClick={() => openExternalUrl(`https://gateway.pinata.cloud/ipfs/${customer.ipfsAadhar}`)}
+                                      >
+                                        <ExternalLink className="mr-2 h-3 w-3" />
+                                        Open
+                                      </Button>
+                                    </>
                                   )}
                                   {customer.ipfsPan && (
-                                    <Button
-                                      variant="outline"
-                                      size="sm"
-                                      onClick={() => window.open(`https://gateway.pinata.cloud/ipfs/${customer.ipfsPan}`, '_blank')}
-                                    >
-                                      <FileText className="mr-2 h-4 w-4" />
-                                      View PAN
-                                      <ExternalLink className="ml-2 h-3 w-3" />
-                                    </Button>
+                                    <>
+                                      <Button
+                                        variant="outline"
+                                        size="sm"
+                                        onClick={() => viewDocumentInline('PAN', customer.ipfsPan!)}
+                                      >
+                                        <ImageIcon className="mr-2 h-4 w-4" />
+                                        View PAN
+                                      </Button>
+                                      <Button
+                                        variant="ghost"
+                                        size="sm"
+                                        onClick={() => openExternalUrl(`https://gateway.pinata.cloud/ipfs/${customer.ipfsPan}`)}
+                                      >
+                                        <ExternalLink className="mr-2 h-3 w-3" />
+                                        Open
+                                      </Button>
+                                    </>
                                   )}
                                 </div>
                               </div>
@@ -745,29 +778,47 @@ export default function AdminPage() {
                             
                             {(customer.ipfsAadhar || customer.ipfsPan) && (
                               <div className="space-y-2">
-                                <p className="text-sm font-medium">Documents:</p>
-                                <div className="flex gap-2">
+                                <p className="text-sm font-medium">Uploaded Documents:</p>
+                                <div className="flex flex-wrap gap-2">
                                   {customer.ipfsAadhar && (
-                                    <Button
-                                      variant="outline"
-                                      size="sm"
-                                      onClick={() => window.open(`https://gateway.pinata.cloud/ipfs/${customer.ipfsAadhar}`, '_blank')}
-                                    >
-                                      <FileText className="mr-2 h-4 w-4" />
-                                      View Aadhaar
-                                      <ExternalLink className="ml-2 h-3 w-3" />
-                                    </Button>
+                                    <>
+                                      <Button
+                                        variant="outline"
+                                        size="sm"
+                                        onClick={() => viewDocumentInline('Aadhaar', customer.ipfsAadhar!)}
+                                      >
+                                        <ImageIcon className="mr-2 h-4 w-4" />
+                                        View Aadhaar
+                                      </Button>
+                                      <Button
+                                        variant="ghost"
+                                        size="sm"
+                                        onClick={() => openExternalUrl(`https://gateway.pinata.cloud/ipfs/${customer.ipfsAadhar}`)}
+                                      >
+                                        <ExternalLink className="mr-2 h-3 w-3" />
+                                        Open
+                                      </Button>
+                                    </>
                                   )}
                                   {customer.ipfsPan && (
-                                    <Button
-                                      variant="outline"
-                                      size="sm"
-                                      onClick={() => window.open(`https://gateway.pinata.cloud/ipfs/${customer.ipfsPan}`, '_blank')}
-                                    >
-                                      <FileText className="mr-2 h-4 w-4" />
-                                      View PAN
-                                      <ExternalLink className="ml-2 h-3 w-3" />
-                                    </Button>
+                                    <>
+                                      <Button
+                                        variant="outline"
+                                        size="sm"
+                                        onClick={() => viewDocumentInline('PAN', customer.ipfsPan!)}
+                                      >
+                                        <ImageIcon className="mr-2 h-4 w-4" />
+                                        View PAN
+                                      </Button>
+                                      <Button
+                                        variant="ghost"
+                                        size="sm"
+                                        onClick={() => openExternalUrl(`https://gateway.pinata.cloud/ipfs/${customer.ipfsPan}`)}
+                                      >
+                                        <ExternalLink className="mr-2 h-3 w-3" />
+                                        Open
+                                      </Button>
+                                    </>
                                   )}
                                 </div>
                               </div>
@@ -1086,6 +1137,59 @@ export default function AdminPage() {
         </DialogContent>
       </Dialog>
 
+      {/* Document Viewer Dialog */}
+      <Dialog open={!!viewingDocument} onOpenChange={() => setViewingDocument(null)}>
+        <DialogContent className="max-w-4xl max-h-[90vh]">
+          <DialogHeader>
+            <DialogTitle>{viewingDocument?.type} Document</DialogTitle>
+            <DialogDescription>
+              Review the uploaded document
+            </DialogDescription>
+          </DialogHeader>
+          
+          {viewingDocument && (
+            <div className="space-y-4">
+              <div className="border rounded-lg overflow-hidden bg-muted">
+                <img 
+                  src={viewingDocument.url} 
+                  alt={`${viewingDocument.type} document`}
+                  className="w-full h-auto max-h-[60vh] object-contain"
+                  onError={(e) => {
+                    const target = e.target as HTMLImageElement;
+                    target.style.display = 'none';
+                    toast.error('Failed to load document. It may not be an image file.');
+                  }}
+                />
+              </div>
+              <div className="flex gap-2">
+                <Button
+                  variant="outline"
+                  onClick={() => openExternalUrl(viewingDocument.url)}
+                  className="flex-1"
+                >
+                  <ExternalLink className="mr-2 h-4 w-4" />
+                  Open in New Tab
+                </Button>
+                <Button
+                  variant="outline"
+                  onClick={() => openExternalUrl(viewingDocument.url)}
+                  className="flex-1"
+                >
+                  <Download className="mr-2 h-4 w-4" />
+                  Download
+                </Button>
+              </div>
+            </div>
+          )}
+          
+          <DialogFooter>
+            <Button onClick={() => setViewingDocument(null)}>
+              Close
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
       {/* View Details Dialog */}
       <Dialog open={!!viewingCustomer} onOpenChange={() => setViewingCustomer(null)}>
         <DialogContent className="max-w-3xl max-h-[80vh] overflow-y-auto">
@@ -1145,28 +1249,86 @@ export default function AdminPage() {
                 <div className="space-y-3">
                   <h3 className="font-semibold flex items-center gap-2">
                     <FileText className="h-4 w-4" />
-                    Documents
+                    Submitted Documents
                   </h3>
-                  <div className="flex gap-2">
+                  <div className="space-y-3">
                     {viewingCustomer.ipfsAadhar && (
-                      <Button
-                        variant="outline"
-                        onClick={() => window.open(`https://gateway.pinata.cloud/ipfs/${viewingCustomer.ipfsAadhar}`, '_blank')}
-                      >
-                        <FileText className="mr-2 h-4 w-4" />
-                        View Aadhaar Document
-                        <ExternalLink className="ml-2 h-3 w-3" />
-                      </Button>
+                      <Card>
+                        <CardHeader className="pb-3">
+                          <CardTitle className="text-sm">Aadhaar Document</CardTitle>
+                        </CardHeader>
+                        <CardContent className="space-y-3">
+                          <div className="border rounded-lg overflow-hidden bg-muted">
+                            <img 
+                              src={`https://gateway.pinata.cloud/ipfs/${viewingCustomer.ipfsAadhar}`}
+                              alt="Aadhaar document"
+                              className="w-full h-auto max-h-[300px] object-contain cursor-pointer hover:opacity-90 transition-opacity"
+                              onClick={() => viewDocumentInline('Aadhaar', viewingCustomer.ipfsAadhar!)}
+                              onError={(e) => {
+                                const target = e.target as HTMLImageElement;
+                                target.style.display = 'none';
+                              }}
+                            />
+                          </div>
+                          <div className="flex gap-2">
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => viewDocumentInline('Aadhaar', viewingCustomer.ipfsAadhar!)}
+                            >
+                              <Eye className="mr-2 h-4 w-4" />
+                              View Full Size
+                            </Button>
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => openExternalUrl(`https://gateway.pinata.cloud/ipfs/${viewingCustomer.ipfsAadhar}`)}
+                            >
+                              <ExternalLink className="mr-2 h-3 w-3" />
+                              Open External
+                            </Button>
+                          </div>
+                        </CardContent>
+                      </Card>
                     )}
                     {viewingCustomer.ipfsPan && (
-                      <Button
-                        variant="outline"
-                        onClick={() => window.open(`https://gateway.pinata.cloud/ipfs/${viewingCustomer.ipfsPan}`, '_blank')}
-                      >
-                        <FileText className="mr-2 h-4 w-4" />
-                        View PAN Document
-                        <ExternalLink className="ml-2 h-3 w-3" />
-                      </Button>
+                      <Card>
+                        <CardHeader className="pb-3">
+                          <CardTitle className="text-sm">PAN Document</CardTitle>
+                        </CardHeader>
+                        <CardContent className="space-y-3">
+                          <div className="border rounded-lg overflow-hidden bg-muted">
+                            <img 
+                              src={`https://gateway.pinata.cloud/ipfs/${viewingCustomer.ipfsPan}`}
+                              alt="PAN document"
+                              className="w-full h-auto max-h-[300px] object-contain cursor-pointer hover:opacity-90 transition-opacity"
+                              onClick={() => viewDocumentInline('PAN', viewingCustomer.ipfsPan!)}
+                              onError={(e) => {
+                                const target = e.target as HTMLImageElement;
+                                target.style.display = 'none';
+                              }}
+                            />
+                          </div>
+                          <div className="flex gap-2">
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => viewDocumentInline('PAN', viewingCustomer.ipfsPan!)}
+                            >
+                              <Eye className="mr-2 h-4 w-4" />
+                              View Full Size
+                            </Button>
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => openExternalUrl(`https://gateway.pinata.cloud/ipfs/${viewingCustomer.ipfsPan}`)}
+                            >
+                              <ExternalLink className="mr-2 h-3 w-3" />
+                              Open External
+                            </Button>
+                          </div>
+                        </CardContent>
+                      </Card>
                     )}
                   </div>
                 </div>
