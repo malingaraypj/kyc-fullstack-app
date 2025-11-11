@@ -1,11 +1,21 @@
 import { ethers } from "ethers";
 
 // Replace this with your actual contract address from Remix deployment
-export const CONTRACT_ADDRESS = "0x4dbab29a553aeb4692e18db76a838bbcfdd0f1b8";
+export const CONTRACT_ADDRESS = "0xe72e9980312349b46b01254168ef1bba794ee3a9";
 
 // Replace this with your actual contract ABI from Remix
 // This is a placeholder ABI structure based on typical KYC management contract
 export const CONTRACT_ABI = [
+  {
+    inputs: [],
+    stateMutability: "nonpayable",
+    type: "constructor",
+  },
+  {
+    inputs: [],
+    name: "AadhaarHashUsed",
+    type: "error",
+  },
   {
     inputs: [
       {
@@ -104,11 +114,6 @@ export const CONTRACT_ABI = [
   },
   {
     inputs: [],
-    stateMutability: "nonpayable",
-    type: "constructor",
-  },
-  {
-    inputs: [],
     name: "AlreadyAdmin",
     type: "error",
   },
@@ -200,6 +205,11 @@ export const CONTRACT_ABI = [
   {
     inputs: [],
     name: "PanExists",
+    type: "error",
+  },
+  {
+    inputs: [],
+    name: "PanHashUsed",
     type: "error",
   },
   {
@@ -542,6 +552,16 @@ export const CONTRACT_ABI = [
         internalType: "string",
         name: "_ipfsPan",
         type: "string",
+      },
+      {
+        internalType: "bytes32",
+        name: "_aadhaarHash",
+        type: "bytes32",
+      },
+      {
+        internalType: "bytes32",
+        name: "_panHash",
+        type: "bytes32",
       },
       {
         internalType: "bytes32",
@@ -901,6 +921,25 @@ export const CONTRACT_ABI = [
   {
     inputs: [
       {
+        internalType: "bytes32",
+        name: "",
+        type: "bytes32",
+      },
+    ],
+    name: "isAadhaarHashUsed",
+    outputs: [
+      {
+        internalType: "bool",
+        name: "",
+        type: "bool",
+      },
+    ],
+    stateMutability: "view",
+    type: "function",
+  },
+  {
+    inputs: [
+      {
         internalType: "address",
         name: "",
         type: "address",
@@ -1002,6 +1041,25 @@ export const CONTRACT_ABI = [
       },
     ],
     name: "isCustomerFromPAN",
+    outputs: [
+      {
+        internalType: "bool",
+        name: "",
+        type: "bool",
+      },
+    ],
+    stateMutability: "view",
+    type: "function",
+  },
+  {
+    inputs: [
+      {
+        internalType: "bytes32",
+        name: "",
+        type: "bytes32",
+      },
+    ],
+    name: "isPanHashUsed",
     outputs: [
       {
         internalType: "bool",

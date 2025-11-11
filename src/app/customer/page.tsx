@@ -1,29 +1,49 @@
-'use client';
+"use client";
 
-import { useState, useEffect } from 'react';
-import { useWallet } from '@/lib/WalletProvider';
-import { getContract } from '@/lib/contract';
-import { uploadToIPFS } from '@/lib/ipfs';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Alert, AlertDescription } from '@/components/ui/alert';
-import { Loader2, CheckCircle2, XCircle, Clock, FileText, Upload, File } from 'lucide-react';
-import { toast } from 'sonner';
-import { ethers } from 'ethers';
+import { useState, useEffect } from "react";
+import { useWallet } from "@/lib/WalletProvider";
+import { getContract } from "@/lib/contract";
+import { uploadToIPFS } from "@/lib/ipfs";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import { Alert, AlertDescription } from "@/components/ui/alert";
+import {
+  Loader2,
+  CheckCircle2,
+  XCircle,
+  Clock,
+  FileText,
+  Upload,
+  File,
+} from "lucide-react";
+import { toast } from "sonner";
+import { ethers } from "ethers";
 
 export default function CustomerPage() {
   const { account } = useWallet();
   const [loading, setLoading] = useState(false);
   const [hasApplication, setHasApplication] = useState(false);
-  const [kycId, setKycId] = useState<string>('');
+  const [kycId, setKycId] = useState<string>("");
+
+  // --- MODIFIED: Added state for hashes ---
   const [formData, setFormData] = useState({
-    name: '',
-    pan: '',
-    ipfsAadhar: '',
-    ipfsPan: ''
+    name: "",
+    pan: "",
+    ipfsAadhar: "",
+    ipfsPan: "",
+    aadhaarHash: "", // To store SHA-256 hash
+    panHash: "", // To store SHA-256 hash
   });
+  // --- END MODIFICATION ---
+
   const [uploadingAadhar, setUploadingAadhar] = useState(false);
   const [uploadingPan, setUploadingPan] = useState(false);
   const [aadharFile, setAadharFile] = useState<File | null>(null);
@@ -39,15 +59,24 @@ export default function CustomerPage() {
     try {
       const contract = await getContract();
       const existingKycId = await contract.kycIdByApplicant(account);
-      
-      if (existingKycId && existingKycId !== '') {
+
+      if (existingKycId && existingKycId !== "") {
         setHasApplication(true);
         setKycId(existingKycId);
       }
     } catch (error) {
-      console.error('Error checking application:', error);
+      console.error("Error checking application:", error);
     }
   }
+
+  // --- NEW: Utility function to hash file ---
+  async function hashFile(file: File): Promise<string> {
+    const arrayBuffer = await file.arrayBuffer();
+    // Use ethers.sha256 to hash the file content
+    const fileHash = ethers.sha256(new Uint8Array(arrayBuffer));
+    return fileHash;
+  }
+  // --- END NEW ---
 
   async function handleAadharUpload(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
@@ -55,14 +84,19 @@ export default function CustomerPage() {
 
     // Validate file size (max 10MB)
     if (file.size > 10 * 1024 * 1024) {
-      toast.error('File size must be less than 10MB');
+      toast.error("File size must be less than 10MB");
       return;
     }
 
     // Validate file type
-    const allowedTypes = ['image/jpeg', 'image/jpg', 'image/png', 'application/pdf'];
+    const allowedTypes = [
+      "image/jpeg",
+      "image/jpg",
+      "image/png",
+      "application/pdf",
+    ];
     if (!allowedTypes.includes(file.type)) {
-      toast.error('Only JPG, PNG, and PDF files are allowed');
+      toast.error("Only JPG, PNG, and PDF files are allowed");
       return;
     }
 
@@ -70,14 +104,44 @@ export default function CustomerPage() {
     setUploadingAadhar(true);
 
     try {
-      toast.loading('Uploading Aadhaar document...', { id: 'aadhar-upload' });
+      // --- MODIFIED: Hashing and Pre-check ---
+      toast.loading("Hashing document...", { id: "aadhar-upload" });
+      const fileHash = await hashFile(file);
+
+      const contract = await getContract(); // Read-only contract
+
+      // Check if hash is already used (assumes new function in ABI)
+      const isUsed = await contract.isAadhaarHashUsed(fileHash);
+      if (isUsed) {
+        toast.error("This Aadhaar document has already been uploaded.", {
+          id: "aadhar-upload",
+        });
+        setAadharFile(null);
+        setUploadingAadhar(false);
+        return; // Stop the upload
+      }
+      // --- END MODIFICATION ---
+
+      toast.loading("Uploading Aadhaar document...", { id: "aadhar-upload" });
       const ipfsHash = await uploadToIPFS(file);
-      setFormData(prev => ({ ...prev, ipfsAadhar: ipfsHash }));
-      toast.success('Aadhaar document uploaded successfully!', { id: 'aadhar-upload' });
+
+      // --- MODIFIED: Store hash along with IPFS link ---
+      setFormData((prev) => ({
+        ...prev,
+        ipfsAadhar: ipfsHash,
+        aadhaarHash: fileHash, // Store the hash
+      }));
+      toast.success("Aadhaar document uploaded successfully!", {
+        id: "aadhar-upload",
+      });
     } catch (error: any) {
-      console.error('Error uploading Aadhaar:', error);
-      toast.error(error.message || 'Failed to upload Aadhaar document', { id: 'aadhar-upload' });
+      console.error("Error uploading Aadhaar:", error);
+      toast.error(error.message || "Failed to upload Aadhaar document", {
+        id: "aadhar-upload",
+      });
       setAadharFile(null);
+      // --- MODIFIED: Clear hash on error ---
+      setFormData((prev) => ({ ...prev, ipfsAadhar: "", aadhaarHash: "" }));
     } finally {
       setUploadingAadhar(false);
     }
@@ -89,14 +153,19 @@ export default function CustomerPage() {
 
     // Validate file size (max 10MB)
     if (file.size > 10 * 1024 * 1024) {
-      toast.error('File size must be less than 10MB');
+      toast.error("File size must be less than 10MB");
       return;
     }
 
     // Validate file type
-    const allowedTypes = ['image/jpeg', 'image/jpg', 'image/png', 'application/pdf'];
+    const allowedTypes = [
+      "image/jpeg",
+      "image/jpg",
+      "image/png",
+      "application/pdf",
+    ];
     if (!allowedTypes.includes(file.type)) {
-      toast.error('Only JPG, PNG, and PDF files are allowed');
+      toast.error("Only JPG, PNG, and PDF files are allowed");
       return;
     }
 
@@ -104,14 +173,44 @@ export default function CustomerPage() {
     setUploadingPan(true);
 
     try {
-      toast.loading('Uploading PAN document...', { id: 'pan-upload' });
+      // --- MODIFIED: Hashing and Pre-check ---
+      toast.loading("Hashing document...", { id: "pan-upload" });
+      const fileHash = await hashFile(file);
+
+      const contract = await getContract(); // Read-only contract
+
+      // Check if hash is already used (assumes new function in ABI)
+      const isUsed = await contract.isPanHashUsed(fileHash);
+      if (isUsed) {
+        toast.error("This PAN document has already been uploaded.", {
+          id: "pan-upload",
+        });
+        setPanFile(null);
+        setUploadingPan(false);
+        return; // Stop the upload
+      }
+      // --- END MODIFICATION ---
+
+      toast.loading("Uploading PAN document...", { id: "pan-upload" });
       const ipfsHash = await uploadToIPFS(file);
-      setFormData(prev => ({ ...prev, ipfsPan: ipfsHash }));
-      toast.success('PAN document uploaded successfully!', { id: 'pan-upload' });
+
+      // --- MODIFIED: Store hash along with IPFS link ---
+      setFormData((prev) => ({
+        ...prev,
+        ipfsPan: ipfsHash,
+        panHash: fileHash, // Store the hash
+      }));
+      toast.success("PAN document uploaded successfully!", {
+        id: "pan-upload",
+      });
     } catch (error: any) {
-      console.error('Error uploading PAN:', error);
-      toast.error(error.message || 'Failed to upload PAN document', { id: 'pan-upload' });
+      console.error("Error uploading PAN:", error);
+      toast.error(error.message || "Failed to upload PAN document", {
+        id: "pan-upload",
+      });
       setPanFile(null);
+      // --- MODIFIED: Clear hash on error ---
+      setFormData((prev) => ({ ...prev, ipfsPan: "", panHash: "" }));
     } finally {
       setUploadingPan(false);
     }
@@ -120,50 +219,84 @@ export default function CustomerPage() {
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     if (!account) {
-      toast.error('Please connect your wallet');
+      toast.error("Please connect your wallet");
       return;
     }
 
-    if (!formData.ipfsAadhar || !formData.ipfsPan) {
-      toast.error('Please upload both Aadhaar and PAN documents');
+    // --- MODIFIED: Check for hashes as well ---
+    if (
+      !formData.ipfsAadhar ||
+      !formData.ipfsPan ||
+      !formData.aadhaarHash ||
+      !formData.panHash
+    ) {
+      toast.error("Please upload both Aadhaar and PAN documents");
       return;
     }
+    // --- END MODIFICATION ---
 
     setLoading(true);
     try {
       // Generate unique KYC ID from wallet address + timestamp
       const uniqueKycId = `KYC-${account.slice(2, 10)}-${Date.now()}`;
-      
+
       const contract = await getContract(true);
+
+      // --- MODIFIED: Pass new hash arguments to the contract ---
       const tx = await contract.submitApplication(
         uniqueKycId,
         formData.name,
         formData.pan,
         formData.ipfsAadhar,
         formData.ipfsPan,
+        formData.aadhaarHash, // <-- NEW
+        formData.panHash, // <-- NEW
         ethers.ZeroHash // vcHash - using zero hash as placeholder
       );
-      
-      toast.loading('Submitting application...', { id: 'submit' });
+      // --- END MODIFICATION ---
+
+      toast.loading("Submitting application...", { id: "submit" });
       await tx.wait();
-      toast.success('KYC application submitted successfully!', { id: 'submit' });
-      
+      toast.success("KYC application submitted successfully!", {
+        id: "submit",
+      });
+
       // Reload data
       await checkExistingApplication();
-      
-      // Clear form
+
+      // --- MODIFIED: Clear form, including hashes ---
       setFormData({
-        name: '',
-        pan: '',
-        ipfsAadhar: '',
-        ipfsPan: ''
+        name: "",
+        pan: "",
+        ipfsAadhar: "",
+        ipfsPan: "",
+        aadhaarHash: "",
+        panHash: "",
       });
+      // --- END MODIFICATION ---
+
       setAadharFile(null);
       setPanFile(null);
     } catch (error: any) {
-      console.error('Error submitting KYC:', error);
-      const errorMessage = error.reason || error.message || 'Failed to submit application';
-      toast.error(errorMessage, { id: 'submit' });
+      console.error("Error submitting KYC:", error);
+
+      // --- MODIFIED: Improved error handling for uniqueness ---
+      const errorMessage =
+        error.reason || error.message || "Failed to submit application";
+
+      if (errorMessage.includes("AadhaarHashUsed")) {
+        toast.error(
+          "Submission failed: This Aadhaar document is already in use.",
+          { id: "submit" }
+        );
+      } else if (errorMessage.includes("PanHashUsed")) {
+        toast.error("Submission failed: This PAN document is already in use.", {
+          id: "submit",
+        });
+      } else {
+        toast.error(errorMessage, { id: "submit" });
+      }
+      // --- END MODIFICATION ---
     } finally {
       setLoading(false);
     }
@@ -175,12 +308,15 @@ export default function CustomerPage() {
         <Card className="max-w-2xl mx-auto">
           <CardHeader>
             <CardTitle>Customer Dashboard</CardTitle>
-            <CardDescription>Please connect your wallet to continue</CardDescription>
+            <CardDescription>
+              Please connect your wallet to continue
+            </CardDescription>
           </CardHeader>
           <CardContent>
             <Alert>
               <AlertDescription>
-                Connect your MetaMask wallet to submit KYC applications and view your status.
+                Connect your MetaMask wallet to submit KYC applications and view
+                your status.
               </AlertDescription>
             </Alert>
           </CardContent>
@@ -213,12 +349,13 @@ export default function CustomerPage() {
                 <span className="font-semibold">KYC ID:</span>
                 <span className="text-muted-foreground">{kycId}</span>
               </div>
-              
+
               <Alert>
                 <Clock className="h-4 w-4" />
                 <AlertDescription>
-                  Your application has been submitted. Please check with admin for approval status.
-                  You can view detailed status in the Admin dashboard if you have admin access.
+                  Your application has been submitted. Please check with admin
+                  for approval status. You can view detailed status in the Admin
+                  dashboard if you have admin access.
                 </AlertDescription>
               </Alert>
             </CardContent>
@@ -231,7 +368,8 @@ export default function CustomerPage() {
             <CardHeader>
               <CardTitle>Submit KYC Application</CardTitle>
               <CardDescription>
-                Fill in your details and upload your documents to complete your KYC verification
+                Fill in your details and upload your documents to complete your
+                KYC verification
               </CardDescription>
             </CardHeader>
             <CardContent>
@@ -241,7 +379,9 @@ export default function CustomerPage() {
                   <Input
                     id="name"
                     value={formData.name}
-                    onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                    onChange={(e) =>
+                      setFormData({ ...formData, name: e.target.value })
+                    }
                     placeholder="Enter your full name"
                     required
                   />
@@ -252,7 +392,12 @@ export default function CustomerPage() {
                   <Input
                     id="pan"
                     value={formData.pan}
-                    onChange={(e) => setFormData({ ...formData, pan: e.target.value.toUpperCase() })}
+                    onChange={(e) =>
+                      setFormData({
+                        ...formData,
+                        pan: e.target.value.toUpperCase(),
+                      })
+                    }
                     placeholder="ABCDE1234F"
                     pattern="[A-Z]{5}[0-9]{4}[A-Z]{1}"
                     title="PAN format: ABCDE1234F"
@@ -284,7 +429,9 @@ export default function CustomerPage() {
                     <div className="flex items-center gap-2 text-sm text-muted-foreground">
                       <File className="h-4 w-4" />
                       <span>{aadharFile.name}</span>
-                      <span className="text-xs">({(aadharFile.size / 1024).toFixed(2)} KB)</span>
+                      <span className="text-xs">
+                        ({(aadharFile.size / 1024).toFixed(2)} KB)
+                      </span>
                     </div>
                   )}
                   {formData.ipfsAadhar && (
@@ -321,7 +468,9 @@ export default function CustomerPage() {
                     <div className="flex items-center gap-2 text-sm text-muted-foreground">
                       <File className="h-4 w-4" />
                       <span>{panFile.name}</span>
-                      <span className="text-xs">({(panFile.size / 1024).toFixed(2)} KB)</span>
+                      <span className="text-xs">
+                        ({(panFile.size / 1024).toFixed(2)} KB)
+                      </span>
                     </div>
                   )}
                   {formData.ipfsPan && (
@@ -334,9 +483,15 @@ export default function CustomerPage() {
                   </p>
                 </div>
 
-                <Button 
-                  type="submit" 
-                  disabled={loading || uploadingAadhar || uploadingPan || !formData.ipfsAadhar || !formData.ipfsPan} 
+                <Button
+                  type="submit"
+                  disabled={
+                    loading ||
+                    uploadingAadhar ||
+                    uploadingPan ||
+                    !formData.ipfsAadhar ||
+                    !formData.ipfsPan
+                  }
                   className="w-full"
                 >
                   {loading ? (
@@ -345,7 +500,7 @@ export default function CustomerPage() {
                       Submitting...
                     </>
                   ) : (
-                    'Submit Application'
+                    "Submit Application"
                   )}
                 </Button>
               </form>
