@@ -33,6 +33,15 @@ interface BankInfo {
   isApproved: boolean;
 }
 
+// Make sure ValidationResult in contract.ts is also updated
+// export interface ValidationResult {
+//   customer: string;
+//   name: string;
+//   pan: string;
+//   isVerified: boolean;
+//   isRevoked: boolean;
+// }
+
 export default function BankPage() {
   const { account } = useWallet();
   const [loading, setLoading] = useState(true);
@@ -69,7 +78,7 @@ export default function BankPage() {
       }
     } catch (error) {
       console.error("Error checking bank status:", error);
-      toast.error("Failed to verify bank status");
+      toast.error("Failed to verify bank status. Are you on Sepolia network?");
     } finally {
       setLoading(false);
     }
@@ -85,20 +94,22 @@ export default function BankPage() {
     setResult(null);
     try {
       const contract = await getContract();
-      // Call the new function
       const data = await contract.validateKYCById(kycId);
 
-      // Correctly map the 5 return values
+      // --- CORRECTED MAPPING ---
+      // Contract returns: [customer, name, pan, isVerified, isRevoked]
       setResult({
         customer: data[0],
         name: data[1],
-        pan: data[2],
-        isVerified: data[3],
-        isRevoked: data[4],
+        pan: data[2], // Index 2 is pan
+        isVerified: data[3], // Index 3 is isVerified
+        isRevoked: data[4], // Index 4 is isRevoked
       });
     } catch (error: any) {
-      console.error("Error validating KYC by ID:", error);
-      toast.error("Customer not found or invalid KYC ID");
+      console.error("Error validating KYC:", error);
+      const errorMessage =
+        error.reason || "Customer not found or invalid KYC ID";
+      toast.error(errorMessage);
     } finally {
       setSearchLoading(false);
     }
@@ -114,20 +125,22 @@ export default function BankPage() {
     setResult(null);
     try {
       const contract = await getContract();
-      // Call the new function
       const data = await contract.validateKYCByPAN(pan);
 
-      // Correctly map the 5 return values
+      // --- CORRECTED MAPPING ---
+      // Contract returns: [customer, name, pan, isVerified, isRevoked]
       setResult({
         customer: data[0],
         name: data[1],
-        pan: data[2],
-        isVerified: data[3],
-        isRevoked: data[4],
+        pan: data[2], // Index 2 is pan
+        isVerified: data[3], // Index 3 is isVerified
+        isRevoked: data[4], // Index 4 is isRevoked
       });
     } catch (error: any) {
-      console.error("Error validating KYC by PAN:", error);
-      toast.error("Customer not found with this PAN number");
+      console.error("Error validating KYC:", error);
+      const errorMessage =
+        error.reason || "Customer not found with this PAN number";
+      toast.error(errorMessage);
     } finally {
       setSearchLoading(false);
     }
@@ -224,7 +237,7 @@ export default function BankPage() {
                   <p className="text-sm text-muted-foreground">
                     Wallet Address
                   </p>
-                  <p className="font-medium break-all font-mono text-sm">
+                  <p className="font-medium text-xs break-all">
                     {bankInfo.addr}
                   </p>
                 </div>
@@ -268,14 +281,14 @@ export default function BankPage() {
               <CardTitle className="text-lg">Bank Information</CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="grid grid-cols-1 gap-4 text-sm">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
                 <div>
                   <p className="text-muted-foreground">Bank Name</p>
                   <p className="font-medium">{bankInfo.bName}</p>
                 </div>
                 <div>
                   <p className="text-muted-foreground">Wallet Address</p>
-                  <p className="font-medium break-all font-mono text-sm">
+                  <p className="font-medium text-xs break-all">
                     {bankInfo.addr}
                   </p>
                 </div>
@@ -307,7 +320,7 @@ export default function BankPage() {
                       type="text"
                       value={kycId}
                       onChange={(e) => setKycId(e.target.value)}
-                      placeholder="Enter KYC ID (e.g., KYC001)"
+                      placeholder="Enter KYC ID (e.g., KYC101)"
                     />
                     <Button
                       onClick={handleValidateById}
@@ -374,26 +387,29 @@ export default function BankPage() {
                     Verified
                   </Badge>
                 ) : (
-                  <Badge variant="outline">Not Verified</Badge>
+                  <Badge variant="outline">Not Verified / Pending</Badge>
                 )}
               </div>
             </CardHeader>
             <CardContent>
               <div className="space-y-4">
-                <div className="grid grid-cols-1 gap-4">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div>
                     <p className="text-sm text-muted-foreground">Name</p>
                     <p className="font-medium">{result.name}</p>
                   </div>
+
+                  {/* --- EMAIL FIELD REMOVED --- */}
+
                   <div>
                     <p className="text-sm text-muted-foreground">PAN Number</p>
                     <p className="font-medium">{result.pan}</p>
                   </div>
                   <div>
                     <p className="text-sm text-muted-foreground">
-                      Wallet Address
+                      Customer Wallet Address
                     </p>
-                    <p className="font-medium break-all font-mono text-sm">
+                    <p className="font-medium text-xs break-all">
                       {result.customer}
                     </p>
                   </div>
@@ -417,8 +433,10 @@ export default function BankPage() {
                   </Alert>
                 ) : (
                   <Alert>
+                    <AlertTriangle className="h-4 w-4" />
                     <AlertDescription>
-                      This customer's KYC application is pending verification.
+                      This customer's KYC application is pending verification or
+                      has been rejected.
                     </AlertDescription>
                   </Alert>
                 )}
@@ -434,15 +452,15 @@ export default function BankPage() {
           <CardContent className="space-y-2 text-sm text-muted-foreground">
             <p>
               • <strong>Verified:</strong> Customer has completed KYC and is
-              approved for banking services
+              approved for banking services.
             </p>
             <p>
-              • <strong>Pending:</strong> KYC application is under review by
-              administrators
+              • <strong>Not Verified / Pending:</strong> KYC application is
+              under review, or was rejected.
             </p>
             <p>
               • <strong>Revoked:</strong> KYC has been revoked and customer is
-              not eligible for services
+              not eligible for services.
             </p>
           </CardContent>
         </Card>
