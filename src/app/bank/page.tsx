@@ -33,7 +33,8 @@ interface BankInfo {
   isApproved: boolean;
 }
 
-// Make sure ValidationResult in contract.ts is also updated
+// **Reminder:** Make sure the ValidationResult interface in src/lib/contract.ts
+// is also updated to remove the 'email' field:
 // export interface ValidationResult {
 //   customer: string;
 //   name: string;
@@ -61,6 +62,7 @@ export default function BankPage() {
   async function checkBankStatus() {
     setLoading(true);
     try {
+      // No signer needed for read-only calls
       const contract = await getContract();
       const isBankRegistered = await contract.isBank(account);
 
@@ -93,7 +95,8 @@ export default function BankPage() {
     setSearchLoading(true);
     setResult(null);
     try {
-      const contract = await getContract();
+      // --- FIX: Pass 'true' to get a signer ---
+      const contract = await getContract(true);
       const data = await contract.validateKYCById(kycId);
 
       // --- CORRECTED MAPPING ---
@@ -124,7 +127,8 @@ export default function BankPage() {
     setSearchLoading(true);
     setResult(null);
     try {
-      const contract = await getContract();
+      // --- FIX: Pass 'true' to get a signer ---
+      const contract = await getContract(true);
       const data = await contract.validateKYCByPAN(pan);
 
       // --- CORRECTED MAPPING ---
