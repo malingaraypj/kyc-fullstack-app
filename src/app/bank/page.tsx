@@ -1,17 +1,31 @@
-'use client';
+"use client";
 
-import { useState, useEffect } from 'react';
-import { useWallet } from '@/lib/WalletProvider';
-import { getContract, ValidationResult } from '@/lib/contract';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Alert, AlertDescription } from '@/components/ui/alert';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Badge } from '@/components/ui/badge';
-import { Loader2, Search, CheckCircle2, XCircle, Building2, AlertTriangle, Clock } from 'lucide-react';
-import { toast } from 'sonner';
+import { useState, useEffect } from "react";
+import { useWallet } from "@/lib/WalletProvider";
+import { getContract, ValidationResult } from "@/lib/contract";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import { Alert, AlertDescription } from "@/components/ui/alert";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Badge } from "@/components/ui/badge";
+import {
+  Loader2,
+  Search,
+  CheckCircle2,
+  XCircle,
+  Building2,
+  AlertTriangle,
+  Clock,
+} from "lucide-react";
+import { toast } from "sonner";
 
 interface BankInfo {
   bName: string;
@@ -25,8 +39,8 @@ export default function BankPage() {
   const [isBank, setIsBank] = useState(false);
   const [bankInfo, setBankInfo] = useState<BankInfo | null>(null);
   const [searchLoading, setSearchLoading] = useState(false);
-  const [kycId, setKycId] = useState('');
-  const [pan, setPan] = useState('');
+  const [kycId, setKycId] = useState("");
+  const [pan, setPan] = useState("");
   const [result, setResult] = useState<ValidationResult | null>(null);
 
   useEffect(() => {
@@ -40,22 +54,22 @@ export default function BankPage() {
     try {
       const contract = await getContract();
       const isBankRegistered = await contract.isBank(account);
-      
+
       if (isBankRegistered) {
         setIsBank(true);
         const bankData = await contract.getBankByAddress(account);
         setBankInfo({
           bName: bankData[0],
           addr: bankData[1],
-          isApproved: bankData[2]
+          isApproved: bankData[2],
         });
       } else {
         setIsBank(false);
         setBankInfo(null);
       }
     } catch (error) {
-      console.error('Error checking bank status:', error);
-      toast.error('Failed to verify bank status');
+      console.error("Error checking bank status:", error);
+      toast.error("Failed to verify bank status");
     } finally {
       setLoading(false);
     }
@@ -63,7 +77,7 @@ export default function BankPage() {
 
   async function handleValidateById() {
     if (!kycId) {
-      toast.error('Please enter a KYC ID');
+      toast.error("Please enter a KYC ID");
       return;
     }
 
@@ -71,19 +85,20 @@ export default function BankPage() {
     setResult(null);
     try {
       const contract = await getContract();
+      // Call the new function
       const data = await contract.validateKYCById(kycId);
-      
+
+      // Correctly map the 5 return values
       setResult({
         customer: data[0],
         name: data[1],
-        email: data[2],
-        pan: data[3],
-        isVerified: data[4],
-        isRevoked: data[5]
+        pan: data[2],
+        isVerified: data[3],
+        isRevoked: data[4],
       });
     } catch (error: any) {
-      console.error('Error validating KYC:', error);
-      toast.error('Customer not found or invalid KYC ID');
+      console.error("Error validating KYC by ID:", error);
+      toast.error("Customer not found or invalid KYC ID");
     } finally {
       setSearchLoading(false);
     }
@@ -91,7 +106,7 @@ export default function BankPage() {
 
   async function handleValidateByPAN() {
     if (!pan) {
-      toast.error('Please enter a PAN number');
+      toast.error("Please enter a PAN number");
       return;
     }
 
@@ -99,19 +114,20 @@ export default function BankPage() {
     setResult(null);
     try {
       const contract = await getContract();
+      // Call the new function
       const data = await contract.validateKYCByPAN(pan);
-      
+
+      // Correctly map the 5 return values
       setResult({
         customer: data[0],
         name: data[1],
-        email: data[2],
-        pan: pan,
+        pan: data[2],
         isVerified: data[3],
-        isRevoked: data[4]
+        isRevoked: data[4],
       });
     } catch (error: any) {
-      console.error('Error validating KYC:', error);
-      toast.error('Customer not found with this PAN number');
+      console.error("Error validating KYC by PAN:", error);
+      toast.error("Customer not found with this PAN number");
     } finally {
       setSearchLoading(false);
     }
@@ -123,7 +139,9 @@ export default function BankPage() {
         <Card className="max-w-2xl mx-auto">
           <CardHeader>
             <CardTitle>Bank Dashboard</CardTitle>
-            <CardDescription>Please connect your wallet to continue</CardDescription>
+            <CardDescription>
+              Please connect your wallet to continue
+            </CardDescription>
           </CardHeader>
           <CardContent>
             <Alert>
@@ -158,8 +176,9 @@ export default function BankPage() {
           <CardContent>
             <Alert variant="destructive">
               <AlertDescription>
-                You are not registered as a bank. Only registered banks can access this dashboard.
-                Please contact the system administrator to register your institution.
+                You are not registered as a bank. Only registered banks can
+                access this dashboard. Please contact the system administrator
+                to register your institution.
               </AlertDescription>
             </Alert>
           </CardContent>
@@ -180,18 +199,21 @@ export default function BankPage() {
                   <Clock className="h-5 w-5 text-orange-600" />
                   Pending Approval
                 </CardTitle>
-                <CardDescription className="mt-1">{bankInfo.bName}</CardDescription>
+                <CardDescription className="mt-1">
+                  {bankInfo.bName}
+                </CardDescription>
               </div>
             </div>
           </CardHeader>
           <CardContent className="space-y-4">
             <Alert>
               <AlertDescription>
-                Your bank registration is pending approval from the system administrator.
-                You will be able to access the bank dashboard once your registration is approved.
+                Your bank registration is pending approval from the system
+                administrator. You will be able to access the bank dashboard
+                once your registration is approved.
               </AlertDescription>
             </Alert>
-            
+
             <div className="pt-4 border-t">
               <div className="space-y-2">
                 <div>
@@ -199,8 +221,12 @@ export default function BankPage() {
                   <p className="font-medium">{bankInfo.bName}</p>
                 </div>
                 <div>
-                  <p className="text-sm text-muted-foreground">Wallet Address</p>
-                  <p className="font-medium text-xs break-all">{bankInfo.addr}</p>
+                  <p className="text-sm text-muted-foreground">
+                    Wallet Address
+                  </p>
+                  <p className="font-medium break-all font-mono text-sm">
+                    {bankInfo.addr}
+                  </p>
                 </div>
                 <div>
                   <p className="text-sm text-muted-foreground">Status</p>
@@ -242,14 +268,16 @@ export default function BankPage() {
               <CardTitle className="text-lg">Bank Information</CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
+              <div className="grid grid-cols-1 gap-4 text-sm">
                 <div>
                   <p className="text-muted-foreground">Bank Name</p>
                   <p className="font-medium">{bankInfo.bName}</p>
                 </div>
                 <div>
                   <p className="text-muted-foreground">Wallet Address</p>
-                  <p className="font-medium text-xs break-all">{bankInfo.addr}</p>
+                  <p className="font-medium break-all font-mono text-sm">
+                    {bankInfo.addr}
+                  </p>
                 </div>
               </div>
             </CardContent>
@@ -281,7 +309,10 @@ export default function BankPage() {
                       onChange={(e) => setKycId(e.target.value)}
                       placeholder="Enter KYC ID (e.g., KYC001)"
                     />
-                    <Button onClick={handleValidateById} disabled={searchLoading}>
+                    <Button
+                      onClick={handleValidateById}
+                      disabled={searchLoading}
+                    >
                       {searchLoading ? (
                         <Loader2 className="h-4 w-4 animate-spin" />
                       ) : (
@@ -302,7 +333,10 @@ export default function BankPage() {
                       onChange={(e) => setPan(e.target.value.toUpperCase())}
                       placeholder="Enter PAN (e.g., ABCDE1234F)"
                     />
-                    <Button onClick={handleValidateByPAN} disabled={searchLoading}>
+                    <Button
+                      onClick={handleValidateByPAN}
+                      disabled={searchLoading}
+                    >
                       {searchLoading ? (
                         <Loader2 className="h-4 w-4 animate-spin" />
                       ) : (
@@ -327,7 +361,10 @@ export default function BankPage() {
                   </CardDescription>
                 </div>
                 {result.isRevoked ? (
-                  <Badge variant="destructive" className="flex items-center gap-1">
+                  <Badge
+                    variant="destructive"
+                    className="flex items-center gap-1"
+                  >
                     <XCircle className="h-3 w-3" />
                     Revoked
                   </Badge>
@@ -343,22 +380,22 @@ export default function BankPage() {
             </CardHeader>
             <CardContent>
               <div className="space-y-4">
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 gap-4">
                   <div>
                     <p className="text-sm text-muted-foreground">Name</p>
                     <p className="font-medium">{result.name}</p>
-                  </div>
-                  <div>
-                    <p className="text-sm text-muted-foreground">Email</p>
-                    <p className="font-medium">{result.email}</p>
                   </div>
                   <div>
                     <p className="text-sm text-muted-foreground">PAN Number</p>
                     <p className="font-medium">{result.pan}</p>
                   </div>
                   <div>
-                    <p className="text-sm text-muted-foreground">Wallet Address</p>
-                    <p className="font-medium text-xs break-all">{result.customer}</p>
+                    <p className="text-sm text-muted-foreground">
+                      Wallet Address
+                    </p>
+                    <p className="font-medium break-all font-mono text-sm">
+                      {result.customer}
+                    </p>
                   </div>
                 </div>
 
@@ -366,14 +403,16 @@ export default function BankPage() {
                   <Alert variant="destructive">
                     <XCircle className="h-4 w-4" />
                     <AlertDescription>
-                      This customer's KYC has been revoked. They are not eligible for banking services.
+                      This customer's KYC has been revoked. They are not
+                      eligible for banking services.
                     </AlertDescription>
                   </Alert>
                 ) : result.isVerified ? (
                   <Alert className="border-green-600">
                     <CheckCircle2 className="h-4 w-4 text-green-600" />
                     <AlertDescription>
-                      This customer has verified KYC and is eligible for banking services.
+                      This customer has verified KYC and is eligible for banking
+                      services.
                     </AlertDescription>
                   </Alert>
                 ) : (
@@ -394,13 +433,16 @@ export default function BankPage() {
           </CardHeader>
           <CardContent className="space-y-2 text-sm text-muted-foreground">
             <p>
-              • <strong>Verified:</strong> Customer has completed KYC and is approved for banking services
+              • <strong>Verified:</strong> Customer has completed KYC and is
+              approved for banking services
             </p>
             <p>
-              • <strong>Pending:</strong> KYC application is under review by administrators
+              • <strong>Pending:</strong> KYC application is under review by
+              administrators
             </p>
             <p>
-              • <strong>Revoked:</strong> KYC has been revoked and customer is not eligible for services
+              • <strong>Revoked:</strong> KYC has been revoked and customer is
+              not eligible for services
             </p>
           </CardContent>
         </Card>
