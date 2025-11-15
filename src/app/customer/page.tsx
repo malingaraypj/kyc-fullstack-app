@@ -49,6 +49,10 @@ export default function CustomerPage() {
   const [aadharFile, setAadharFile] = useState<File | null>(null);
   const [panFile, setPanFile] = useState<File | null>(null);
 
+  // --- NEW: State to track backend verification status ---
+  const [isAadharVerified, setIsAadharVerified] = useState(false);
+  // --- END NEW ---
+
   useEffect(() => {
     if (account) {
       checkExistingApplication();
@@ -78,9 +82,67 @@ export default function CustomerPage() {
   }
   // --- END NEW ---
 
+  // --- NEW: Function to verify document against your FastAPI backend ---
+  async function verifyAadhaarDocument(file: File): Promise<boolean> {
+    const verificationFormData = new FormData();
+    verificationFormData.append("id_document", file);
+
+    const toastId = "aadhar-verify";
+    toast.loading("Verifying document... (This may take a moment)", {
+      id: toastId,
+    });
+
+    try {
+      const response = await fetch("http://127.0.0.1:8000/verify", {
+        method: "POST",
+        body: verificationFormData,
+        // Note: Do not set 'Content-Type' header, browser does it for FormData
+      });
+
+      const result = await response.json();
+
+      if (!response.ok) {
+        throw new Error(
+          result.error || "Verification server error. Is the server running?"
+        );
+      }
+
+      if (result.error) {
+        throw new Error(result.error);
+      }
+
+      if (result.verified === true) {
+        toast.success(
+          `Verification Successful! Confidence: ${result.confidence || "N/A"}`,
+          { id: toastId }
+        );
+        return true;
+      } else {
+        // result.verified === false
+        toast.error(
+          `Verification Failed: ${result.message || "No match found."}`,
+          { id: toastId, duration: 6000 }
+        );
+        return false;
+      }
+    } catch (error: any) {
+      console.error("Verification failed:", error);
+      toast.error(
+        `Verification Failed: ${error.message}. Please ensure the server is running and CORS is enabled.`,
+        { id: toastId, duration: 6000 }
+      );
+      return false;
+    }
+  }
+  // --- END NEW ---
+
   async function handleAadharUpload(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
     if (!file) return;
+
+    // --- NEW: Reset verification status on new file select ---
+    setIsAadharVerified(false);
+    // --- END NEW ---
 
     // Validate file size (max 10MB)
     if (file.size > 10 * 1024 * 1024) {
@@ -104,6 +166,20 @@ export default function CustomerPage() {
     setUploadingAadhar(true);
 
     try {
+      // --- NEW: Perform backend verification FIRST ---
+      const verificationSuccess = await verifyAadhaarDocument(file);
+
+      // If verification fails, stop the entire process
+      if (!verificationSuccess) {
+        setAadharFile(null);
+        setUploadingAadhar(false);
+        return; // <-- STOPS HERE
+      }
+
+      // If verification succeeds, mark as verified and continue
+      setIsAadharVerified(true);
+      // --- END NEW ---
+
       // --- MODIFIED: Hashing and Pre-check ---
       toast.loading("Hashing document...", { id: "aadhar-upload" });
       const fileHash = await hashFile(file);
@@ -118,11 +194,14 @@ export default function CustomerPage() {
         });
         setAadharFile(null);
         setUploadingAadhar(false);
+        setIsAadharVerified(false); // --- NEW: Reset status ---
         return; // Stop the upload
       }
       // --- END MODIFICATION ---
 
-      toast.loading("Uploading Aadhaar document...", { id: "aadhar-upload" });
+      toast.loading("Uploading Aadhaar document to IPFS...", {
+        id: "aadhar-upload",
+      });
       const ipfsHash = await uploadToIPFS(file);
 
       // --- MODIFIED: Store hash along with IPFS link ---
@@ -142,6 +221,7 @@ export default function CustomerPage() {
       setAadharFile(null);
       // --- MODIFIED: Clear hash on error ---
       setFormData((prev) => ({ ...prev, ipfsAadhar: "", aadhaarHash: "" }));
+      setIsAadharVerified(false); // --- NEW: Reset status ---
     } finally {
       setUploadingAadhar(false);
     }
@@ -191,7 +271,7 @@ export default function CustomerPage() {
       }
       // --- END MODIFICATION ---
 
-      toast.loading("Uploading PAN document...", { id: "pan-upload" });
+      toast.loading("Uploading PAN document to IPFS...", { id: "pan-upload" });
       const ipfsHash = await uploadToIPFS(file);
 
       // --- MODIFIED: Store hash along with IPFS link ---
@@ -223,7 +303,7 @@ export default function CustomerPage() {
       return;
     }
 
-    // --- MODIFIED: Check for hashes as well ---
+    // --- MODIFIED: Check for hashes AND verification ---
     if (
       !formData.ipfsAadhar ||
       !formData.ipfsPan ||
@@ -233,7 +313,13 @@ export default function CustomerPage() {
       toast.error("Please upload both Aadhaar and PAN documents");
       return;
     }
-    // --- END MODIFICATION ---
+
+    // --- NEW: Check for verification status ---
+    if (!isAadharVerified) {
+      toast.error("Aadhaar document has not been verified.");
+      return;
+    }
+    // --- END NEW ---
 
     setLoading(true);
     try {
@@ -277,6 +363,7 @@ export default function CustomerPage() {
 
       setAadharFile(null);
       setPanFile(null);
+      setIsAadharVerified(false); // --- NEW: Reset status ---
     } catch (error: any) {
       console.error("Error submitting KYC:", error);
 
@@ -421,9 +508,13 @@ export default function CustomerPage() {
                     {uploadingAadhar && (
                       <Loader2 className="h-5 w-5 animate-spin text-primary" />
                     )}
-                    {formData.ipfsAadhar && !uploadingAadhar && (
-                      <CheckCircle2 className="h-5 w-5 text-green-600" />
-                    )}
+                    {/* --- MODIFIED: Show checkmark only when verified AND uploaded --- */}
+                    {isAadharVerified &&
+                      formData.ipfsAadhar &&
+                      !uploadingAadhar && (
+                        <CheckCircle2 className="h-5 w-5 text-green-600" />
+                      )}
+                    {/* --- END MODIFIED --- */}
                   </div>
                   {aadharFile && (
                     <div className="flex items-center gap-2 text-sm text-muted-foreground">
@@ -434,11 +525,18 @@ export default function CustomerPage() {
                       </span>
                     </div>
                   )}
-                  {formData.ipfsAadhar && (
-                    <p className="text-xs text-green-600">
-                      ✓ Document uploaded successfully
+                  {/* --- MODIFIED: More descriptive status --- */}
+                  {isAadharVerified && !formData.ipfsAadhar && (
+                    <p className="text-xs text-blue-600">
+                      ✓ Document verified. Now uploading to IPFS...
                     </p>
                   )}
+                  {formData.ipfsAadhar && (
+                    <p className="text-xs text-green-600">
+                      ✓ Document verified and uploaded successfully
+                    </p>
+                  )}
+                  {/* --- END MODIFIED --- */}
                   <p className="text-xs text-muted-foreground">
                     Upload your Aadhaar document (JPG, PNG, or PDF, max 10MB)
                   </p>
@@ -485,13 +583,16 @@ export default function CustomerPage() {
 
                 <Button
                   type="submit"
+                  // --- MODIFIED: Added !isAadharVerified to disabled check ---
                   disabled={
                     loading ||
                     uploadingAadhar ||
                     uploadingPan ||
                     !formData.ipfsAadhar ||
-                    !formData.ipfsPan
+                    !formData.ipfsPan ||
+                    !isAadharVerified // <-- MUST BE VERIFIED TO SUBMIT
                   }
+                  // --- END MODIFIED ---
                   className="w-full"
                 >
                   {loading ? (

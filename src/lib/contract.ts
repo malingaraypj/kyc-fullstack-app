@@ -1,9 +1,8 @@
 import { ethers } from "ethers";
 
 // Replace this with your actual contract address from Remix deployment
-export const CONTRACT_ADDRESS = "0xe72e9980312349b46b01254168ef1bba794ee3a9";
+export const CONTRACT_ADDRESS = "0x5006efbbb65ec6de86f767d7a5a92061a20e4520";
 
-// Replace this with your actual contract ABI from Remix
 // This is a placeholder ABI structure based on typical KYC management contract
 export const CONTRACT_ABI = [
   {
@@ -1213,7 +1212,6 @@ export const CONTRACT_ABI = [
     type: "function",
   },
 ];
-
 export interface KYCData {
   kycId: bigint;
   name: string;
