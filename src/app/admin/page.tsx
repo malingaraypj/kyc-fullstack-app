@@ -12,7 +12,7 @@ import {
 } from "@/components/ui/card";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Loader2, AlertTriangle } from "lucide-react";
-import { AdminDashboard } from "@/components/admin/AdminDashboard"; // Import the new main component
+import { AdminDashboard } from "@/components/admin/AdminDashboard";
 
 export default function AdminPage() {
   const { account } = useWallet();
