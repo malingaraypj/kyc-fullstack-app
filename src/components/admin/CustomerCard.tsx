@@ -9,6 +9,7 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { Alert, AlertDescription } from "@/components/ui/alert";
 import {
   Loader2,
   CheckCircle2,
@@ -17,6 +18,8 @@ import {
   FileText,
   ExternalLink,
   Eye,
+  EyeOff,
+  AlertTriangle,
 } from "lucide-react";
 
 // Define or import these types
@@ -31,6 +34,7 @@ interface CustomerData {
   updatedAt: bigint;
   ipfsAadhar?: string;
   ipfsPan?: string;
+  accessBlocked?: boolean; // NEW: indicates if admin access is revoked by customer
 }
 
 type CustomerCardProps = {
@@ -90,6 +94,43 @@ export function CustomerCard({
 }: CustomerCardProps) {
   const isProcessing = processing === customer.kycId;
   const status = customer.status;
+
+  // Handle access blocked case
+  if (customer.accessBlocked) {
+    return (
+      <Card className="border-red-200 bg-red-50">
+        <CardHeader>
+          <div className="flex items-start justify-between">
+            <div>
+              <CardTitle className="flex items-center gap-2">
+                <EyeOff className="h-5 w-5 text-red-600" />
+                Customer Information Hidden
+              </CardTitle>
+              <CardDescription className="mt-1">
+                This customer has restricted admin access to their KYC details
+              </CardDescription>
+            </div>
+            <Badge
+              variant="outline"
+              className="bg-red-100 text-red-800 border-red-300"
+            >
+              Access Blocked
+            </Badge>
+          </div>
+        </CardHeader>
+        <CardContent>
+          <Alert className="border-red-200 bg-red-100">
+            <AlertTriangle className="h-4 w-4 text-red-600" />
+            <AlertDescription className="text-red-900">
+              This customer has chosen to hide their KYC information from admin
+              view. They can change this privacy setting at any time through
+              their privacy controls.
+            </AlertDescription>
+          </Alert>
+        </CardContent>
+      </Card>
+    );
+  }
 
   return (
     <Card>

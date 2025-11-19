@@ -26,6 +26,7 @@ interface CustomerData {
   updatedAt: bigint;
   ipfsAadhar?: string;
   ipfsPan?: string;
+  accessBlocked?: boolean; // NEW: indicates if admin access is revoked by customer
 }
 
 interface BankData {
@@ -69,6 +70,10 @@ export function AdminDashboard() {
     }
   }
 
+  async function reloadCustomers() {
+    await loadCustomers();
+  }
+
   async function loadCustomers() {
     try {
       const contract = await getContract(true);
@@ -83,7 +88,40 @@ export function AdminDashboard() {
         customerDataPromises.push(loadCustomerAtIndex(i));
       }
       const customerData = await Promise.all(customerDataPromises);
-      const validCustomers = customerData.filter(Boolean) as CustomerData[];
+
+      // Separate blocked customers for potential retry
+      const validCustomers: CustomerData[] = [];
+      const blockedCustomers: { index: number; data: CustomerData }[] = [];
+
+      customerData.forEach((customer, idx) => {
+        if (customer) {
+          if (customer.accessBlocked) {
+            blockedCustomers.push({ index: idx, data: customer });
+          } else {
+            validCustomers.push(customer);
+          }
+        }
+      });
+
+      // Retry loading blocked customers in case customer unblocked access
+      if (blockedCustomers.length > 0) {
+        for (const blocked of blockedCustomers) {
+          try {
+            const retriedCustomer = await loadCustomerAtIndex(blocked.index);
+            if (retriedCustomer && !retriedCustomer.accessBlocked) {
+              // Successfully loaded after retry - customer unblocked access
+              validCustomers.push(retriedCustomer);
+            } else {
+              // Still blocked
+              validCustomers.push(blocked.data);
+            }
+          } catch (error) {
+            // Keep original blocked status
+            validCustomers.push(blocked.data);
+          }
+        }
+      }
+
       setCustomers(validCustomers);
     } catch (error: any) {
       console.error("Error loading customers:", error);
@@ -109,7 +147,7 @@ export function AdminDashboard() {
           else if (record[0] === "pan") ipfsPan = record[1];
         }
       } catch (err) {
-        /* No records */
+        // Silently ignore record fetching errors
       }
 
       return {
@@ -123,9 +161,32 @@ export function AdminDashboard() {
         updatedAt: data[7],
         ipfsAadhar,
         ipfsPan,
+        accessBlocked: false,
       };
     } catch (error: any) {
       console.error(`Error loading customer at index ${index}:`, error);
+      // Handle AdminAccessRevoked error gracefully
+      if (error.message?.includes("AdminAccessRevoked")) {
+        console.log(
+          `Customer at index ${index} has blocked admin access`,
+          error
+        );
+        // Return a placeholder customer indicating access is blocked
+        // Use a special marker to identify blocked customers for potential retry
+        return {
+          kycId: `BLOCKED_${index}`,
+          name: "[Access Blocked by Customer]",
+          pan: "[Hidden]",
+          applicant: "[Hidden]",
+          status: -1,
+          vcHash: "",
+          createdAt: BigInt(0),
+          updatedAt: BigInt(0),
+          ipfsAadhar: undefined,
+          ipfsPan: undefined,
+          accessBlocked: true,
+        };
+      }
       return null;
     }
   }

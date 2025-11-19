@@ -1,20 +1,9 @@
 import { ethers } from "ethers";
 
-// Replace this with your actual contract address from Remix deployment
-export const CONTRACT_ADDRESS = "0xf98a9b0766c4d2621b5155ad9e129c01f9648e51";
+export const CONTRACT_ADDRESS = "0x04bef941fcfa6c4839898d9ff2e60894eb7d5bdd";
 
-// This is a placeholder ABI structure based on typical KYC management contract
+// ABI for KYC Smart Contract
 export const CONTRACT_ABI = [
-  {
-    inputs: [],
-    stateMutability: "nonpayable",
-    type: "constructor",
-  },
-  {
-    inputs: [],
-    name: "AadhaarHashUsed",
-    type: "error",
-  },
   {
     inputs: [
       {
@@ -35,6 +24,16 @@ export const CONTRACT_ABI = [
     type: "function",
   },
   {
+    inputs: [],
+    stateMutability: "nonpayable",
+    type: "constructor",
+  },
+  {
+    inputs: [],
+    name: "AadhaarHashUsed",
+    type: "error",
+  },
+  {
     inputs: [
       {
         internalType: "string",
@@ -53,63 +52,9 @@ export const CONTRACT_ABI = [
     type: "function",
   },
   {
-    inputs: [
-      {
-        internalType: "string",
-        name: "_kycId",
-        type: "string",
-      },
-      {
-        internalType: "string",
-        name: "_remarks",
-        type: "string",
-      },
-      {
-        internalType: "bytes32",
-        name: "_vcHash",
-        type: "bytes32",
-      },
-    ],
-    name: "adminApprove",
-    outputs: [],
-    stateMutability: "nonpayable",
-    type: "function",
-  },
-  {
-    inputs: [
-      {
-        internalType: "string",
-        name: "_kycId",
-        type: "string",
-      },
-      {
-        internalType: "string",
-        name: "_remarks",
-        type: "string",
-      },
-    ],
-    name: "adminReject",
-    outputs: [],
-    stateMutability: "nonpayable",
-    type: "function",
-  },
-  {
-    inputs: [
-      {
-        internalType: "string",
-        name: "_kycId",
-        type: "string",
-      },
-      {
-        internalType: "string",
-        name: "_remarks",
-        type: "string",
-      },
-    ],
-    name: "adminRevoke",
-    outputs: [],
-    stateMutability: "nonpayable",
-    type: "function",
+    inputs: [],
+    name: "AdminAccessRevoked",
+    type: "error",
   },
   {
     inputs: [],
@@ -129,11 +74,6 @@ export const CONTRACT_ABI = [
   {
     inputs: [],
     name: "BankNotFound",
-    type: "error",
-  },
-  {
-    inputs: [],
-    name: "CannotRemoveOwner",
     type: "error",
   },
   {
@@ -198,22 +138,12 @@ export const CONTRACT_ABI = [
   },
   {
     inputs: [],
-    name: "OnlyOwner",
-    type: "error",
-  },
-  {
-    inputs: [],
     name: "PanExists",
     type: "error",
   },
   {
     inputs: [],
     name: "PanHashUsed",
-    type: "error",
-  },
-  {
-    inputs: [],
-    name: "Paused",
     type: "error",
   },
   {
@@ -230,6 +160,47 @@ export const CONTRACT_ABI = [
     type: "event",
   },
   {
+    inputs: [
+      {
+        internalType: "string",
+        name: "_kycId",
+        type: "string",
+      },
+      {
+        internalType: "string",
+        name: "_remarks",
+        type: "string",
+      },
+      {
+        internalType: "bytes32",
+        name: "_vcHash",
+        type: "bytes32",
+      },
+    ],
+    name: "adminApprove",
+    outputs: [],
+    stateMutability: "nonpayable",
+    type: "function",
+  },
+  {
+    inputs: [
+      {
+        internalType: "string",
+        name: "_kycId",
+        type: "string",
+      },
+      {
+        internalType: "string",
+        name: "_remarks",
+        type: "string",
+      },
+    ],
+    name: "adminReject",
+    outputs: [],
+    stateMutability: "nonpayable",
+    type: "function",
+  },
+  {
     anonymous: false,
     inputs: [
       {
@@ -241,6 +212,24 @@ export const CONTRACT_ABI = [
     ],
     name: "AdminRemoved",
     type: "event",
+  },
+  {
+    inputs: [
+      {
+        internalType: "string",
+        name: "_kycId",
+        type: "string",
+      },
+      {
+        internalType: "string",
+        name: "_remarks",
+        type: "string",
+      },
+    ],
+    name: "adminRevoke",
+    outputs: [],
+    stateMutability: "nonpayable",
+    type: "function",
   },
   {
     anonymous: false,
@@ -404,31 +393,18 @@ export const CONTRACT_ABI = [
     inputs: [
       {
         indexed: true,
-        internalType: "address",
-        name: "from",
-        type: "address",
+        internalType: "string",
+        name: "kycId",
+        type: "string",
       },
-      {
-        indexed: true,
-        internalType: "address",
-        name: "to",
-        type: "address",
-      },
-    ],
-    name: "OwnerChanged",
-    type: "event",
-  },
-  {
-    anonymous: false,
-    inputs: [
       {
         indexed: false,
         internalType: "bool",
-        name: "paused",
+        name: "isVisible",
         type: "bool",
       },
     ],
-    name: "PausedSet",
+    name: "CustomerAdminVisibilitySet",
     type: "event",
   },
   {
@@ -478,6 +454,24 @@ export const CONTRACT_ABI = [
   {
     inputs: [
       {
+        internalType: "string",
+        name: "_kycId",
+        type: "string",
+      },
+      {
+        internalType: "bool",
+        name: "_visible",
+        type: "bool",
+      },
+    ],
+    name: "setAdminVisibility",
+    outputs: [],
+    stateMutability: "nonpayable",
+    type: "function",
+  },
+  {
+    inputs: [
+      {
         internalType: "address",
         name: "_bank",
         type: "address",
@@ -489,38 +483,6 @@ export const CONTRACT_ABI = [
       },
     ],
     name: "setBankApproval",
-    outputs: [],
-    stateMutability: "nonpayable",
-    type: "function",
-  },
-  {
-    inputs: [
-      {
-        internalType: "address",
-        name: "_owner",
-        type: "address",
-      },
-    ],
-    name: "setOwner",
-    outputs: [
-      {
-        internalType: "bool",
-        name: "",
-        type: "bool",
-      },
-    ],
-    stateMutability: "nonpayable",
-    type: "function",
-  },
-  {
-    inputs: [
-      {
-        internalType: "bool",
-        name: "_paused",
-        type: "bool",
-      },
-    ],
-    name: "setPaused",
     outputs: [],
     stateMutability: "nonpayable",
     type: "function",
@@ -681,6 +643,25 @@ export const CONTRACT_ABI = [
         internalType: "string",
         name: "",
         type: "string",
+      },
+    ],
+    stateMutability: "view",
+    type: "function",
+  },
+  {
+    inputs: [
+      {
+        internalType: "string",
+        name: "_kycId",
+        type: "string",
+      },
+    ],
+    name: "getAdminVisibility",
+    outputs: [
+      {
+        internalType: "bool",
+        name: "",
+        type: "bool",
       },
     ],
     stateMutability: "view",
@@ -1108,32 +1089,6 @@ export const CONTRACT_ABI = [
     type: "function",
   },
   {
-    inputs: [],
-    name: "owner",
-    outputs: [
-      {
-        internalType: "address",
-        name: "",
-        type: "address",
-      },
-    ],
-    stateMutability: "view",
-    type: "function",
-  },
-  {
-    inputs: [],
-    name: "paused",
-    outputs: [
-      {
-        internalType: "bool",
-        name: "",
-        type: "bool",
-      },
-    ],
-    stateMutability: "view",
-    type: "function",
-  },
-  {
     inputs: [
       {
         internalType: "string",
@@ -1212,98 +1167,44 @@ export const CONTRACT_ABI = [
     type: "function",
   },
 ];
-export interface KYCData {
-  kycId: bigint;
-  name: string;
-  email: string;
-  pan: string;
-  aadhaar: string;
-  addressProof: string;
-  isVerified: boolean;
-  isRevoked: boolean;
-  timestamp: bigint;
-}
-
-export interface ValidationResult {
-  customer: string;
-  name: string;
-  //   email: string;
-  pan: string;
-  isVerified: boolean;
-  isRevoked: boolean;
-}
-
-export function getProvider() {
-  if (typeof window !== "undefined" && window.ethereum) {
-    return new ethers.BrowserProvider(window.ethereum);
-  }
-  return null;
-}
-
-export async function getContract(withSigner = false) {
-  const provider = getProvider();
-  if (!provider) throw new Error("No wallet provider found");
-
-  if (withSigner) {
-    const signer = await provider.getSigner();
-    return new ethers.Contract(CONTRACT_ADDRESS, CONTRACT_ABI, signer);
-  }
-
-  return new ethers.Contract(CONTRACT_ADDRESS, CONTRACT_ABI, provider);
-}
-
-export async function connectWallet() {
-  if (typeof window === "undefined" || !window.ethereum) {
-    throw new Error("MetaMask is not installed");
-  }
-
-  try {
-    const provider = new ethers.BrowserProvider(window.ethereum);
-    const accounts = await provider.send("eth_requestAccounts", []);
-
-    // Check if connected to Sepolia
-    const network = await provider.getNetwork();
-    const chainId = Number(network.chainId);
-
-    if (chainId !== 11155111) {
-      // Try to switch to Sepolia
-      try {
-        await window.ethereum.request({
-          method: "wallet_switchEthereumChain",
-          params: [{ chainId: "0xaa36a7" }], // 11155111 in hex
-        });
-      } catch (switchError: any) {
-        // Chain doesn't exist, add it
-        if (switchError.code === 4902) {
-          await window.ethereum.request({
-            method: "wallet_addEthereumChain",
-            params: [
-              {
-                chainId: "0xaa36a7",
-                chainName: "Sepolia Test Network",
-                nativeCurrency: {
-                  name: "Sepolia ETH",
-                  symbol: "ETH",
-                  decimals: 18,
-                },
-                rpcUrls: ["https://rpc.sepolia.org"],
-                blockExplorerUrls: ["https://sepolia.etherscan.io"],
-              },
-            ],
-          });
-        }
-      }
-    }
-
-    return accounts[0];
-  } catch (error) {
-    console.error("Error connecting wallet:", error);
-    throw error;
-  }
-}
 
 declare global {
   interface Window {
     ethereum?: any;
   }
+}
+
+export function getProvider() {
+  if (typeof window !== "undefined" && window.ethereum) {
+    return window.ethereum;
+  }
+  return null;
+}
+
+export async function connectWallet(): Promise<string> {
+  if (!window.ethereum) {
+    throw new Error("MetaMask is not installed");
+  }
+
+  try {
+    const accounts = await window.ethereum.request({
+      method: "eth_requestAccounts",
+    });
+    return accounts[0];
+  } catch (error: any) {
+    throw new Error(error.message || "Failed to connect wallet");
+  }
+}
+
+export async function getContract(admin?: boolean) {
+  // Get the signer
+  const provider = new ethers.BrowserProvider(window.ethereum!);
+  const signer = admin ? await provider.getSigner() : null;
+
+  // Create and return contract instance
+  return new ethers.Contract(
+    CONTRACT_ADDRESS,
+    CONTRACT_ABI,
+    signer || provider
+  );
 }
