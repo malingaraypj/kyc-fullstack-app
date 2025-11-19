@@ -117,7 +117,7 @@ export function ViewCustomerDialog({
   async function loadCustomerHistory(kycId: string) {
     setLoadingHistory(true);
     try {
-      const contract = await getContract();
+      const contract = await getContract(true); // Use admin signer to access history
       const count = await contract.getCustomerHistoryCount(kycId);
       const totalCount = Number(count);
       const historyPromises = [];
@@ -132,9 +132,22 @@ export function ViewCustomerDialog({
           time: h[2],
         }))
       );
-    } catch (error) {
+    } catch (error: any) {
       console.error("Error loading history:", error);
-      toast.error("Failed to load customer history");
+      const errorMsg =
+        error.message || error.reason || "Failed to load customer history";
+
+      // Check if error is due to admin access being revoked by customer
+      if (errorMsg.includes("AdminAccessRevoked")) {
+        toast.error(
+          "Customer has restricted admin access to their information"
+        );
+      } else {
+        toast.error(errorMsg);
+      }
+
+      // Set empty history on error
+      setHistory([]);
     } finally {
       setLoadingHistory(false);
     }
